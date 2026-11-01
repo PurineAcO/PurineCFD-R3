@@ -1,4 +1,5 @@
 import argparse
+import array
 import json
 import math
 from pathlib import Path
@@ -22,6 +23,8 @@ radii = [radius + first_height * (q**j - 1) / (q - 1) for j in range(nr + 1)]
 cos_t = [math.cos(2 * math.pi * i / nt) for i in range(nt)]
 sin_t = [math.sin(2 * math.pi * i / nt) for i in range(nt)]
 zs = [span_length * k / nz for k in range(nz + 1)]
+nnode = nt * (nr + 1) * (nz + 1)
+ncells = nt * nr * nz
 
 
 # 节点编号: i(环向) 周期共享, j(径向) 与 k(展向) 均为独立平面
@@ -29,16 +32,27 @@ def node(j, i, k):
   return (k * (nr + 1) + j) * nt + (i % nt) + 1
 
 
-def coord(index):
-  n = index - 1
-  k, rest = divmod(n, (nr + 1) * nt)
-  j, i = divmod(rest, nt)
-  return radii[j] * cos_t[i], radii[j] * sin_t[i], zs[k]
-
-
 def cell(i, j, k):
   return (i % nt) + nt * (j + nr * k) + 1
 
+
+# 节点查找表(下标即节点编号): 结构化索引与坐标, 供拓扑/几何校验使用
+def table(typecode):
+  return array.array(typecode, [0]) * (nnode + 1)
+
+
+NI, NJ, NK = table('h'), table('h'), table('h')
+XS, YS, ZS = table('d'), table('d'), table('d')
+row_i = array.array('h', range(nt))
+for k in range(nz + 1):
+  for j in range(nr + 1):
+    base = (k * (nr + 1) + j) * nt + 1
+    NI[base:base + nt] = row_i
+    NJ[base:base + nt] = array.array('h', [j]) * nt
+    NK[base:base + nt] = array.array('h', [k]) * nt
+    XS[base:base + nt] = array.array('d', [radii[j] * c for c in cos_t])
+    YS[base:base + nt] = array.array('d', [radii[j] * s for s in sin_t])
+    ZS[base:base + nt] = array.array('d', [zs[k]]) * nt
 
 # 面按块连续编号, 顺序与写出顺序一致: 内部 i 向 -> 内部 j 向 -> 内部 k 向 -> 壁面 -> 远场 -> 展向对称
 n_i = nt * nr * nz  # i 向面 (θ 向法向), 全部内部
@@ -74,7 +88,7 @@ def face_sym(i, j, side):
   return n_i + n_j + n_k + n_cyl + n_far + side * nt * nr + (i % nt) + nt * j + 1
 
 
-# 节点环按右手定则排列, 面法向由 0.5*(p2-p0)x(p3-p1) 给出, 由 cell_1 指向 cell_2
+# 节点环按右手定则排列: 相邻两项必须是同一条网格边, 且首尾闭合
 def loop_i(i, j, k):
   return (node(j, i, k), node(j, i, k + 1), node(j + 1, i, k + 1), node(j + 1, i, k))
 
@@ -91,40 +105,114 @@ def reverse(loop):
   return (loop[0],) + loop[:0:-1]
 
 
+# 单元六个面: (面编号, 节点环). 1-2、3-4、5-6 依次为 i、j、k 三个方向的一对相对面.
+# 编号与节点环必须同源, 校验用的环就是写出到 mesh.txt 的那一份
+def cell_sides(i, j, k):
+  return (
+    (face_i(i, j, k), loop_i(i, j, k)),
+    (face_i(i + 1, j, k), loop_i(i + 1, j, k)),
+    (face_cyl(i, k), reverse(loop_j(i, 0, k)))
+    if j == 0 else (face_j(i, j, k), loop_j(i, j, k)),
+    (face_far(i, k), loop_j(i, nr, k))
+    if j == nr - 1 else (face_j(i, j + 1, k), loop_j(i, j + 1, k)),
+    (face_sym(i, j, 0), reverse(loop_k(i, j, 0)))
+    if k == 0 else (face_k(i, j, k), loop_k(i, j, k)),
+    (face_sym(i, j, 1), loop_k(i, j, nz))
+    if k == nz - 1 else (face_k(i, j, k + 1), loop_k(i, j, k + 1)),
+  )
+
+
 def normal(loop):
-  p = [coord(n) for n in loop]
-  d1 = [p[2][t] - p[0][t] for t in range(3)]
-  d2 = [p[3][t] - p[1][t] for t in range(3)]
-  return [
-    0.5 * (d1[1] * d2[2] - d1[2] * d2[1]),
-    0.5 * (d1[2] * d2[0] - d1[0] * d2[2]),
-    0.5 * (d1[0] * d2[1] - d1[1] * d2[0]),
-  ]
+  a, b, c, d = loop
+  ax, ay, az = XS[c] - XS[a], YS[c] - YS[a], ZS[c] - ZS[a]
+  bx, by, bz = XS[d] - XS[b], YS[d] - YS[b], ZS[d] - ZS[b]
+  return (
+    0.5 * (ay * bz - az * by),
+    0.5 * (az * bx - ax * bz),
+    0.5 * (ax * by - ay * bx),
+  )
 
 
-def dot(a, b):
-  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+def cell_center(c):
+  n = c - 1
+  i = n % nt
+  rest = n // nt
+  j = rest % nr
+  k = rest // nr
+  rm = 0.5 * (radii[j] + radii[j + 1])
+  return (
+    rm * 0.5 * (cos_t[i] + cos_t[(i + 1) % nt]),
+    rm * 0.5 * (sin_t[i] + sin_t[(i + 1) % nt]),
+    0.5 * (zs[k] + zs[k + 1]),
+  )
 
 
-# 自检: 内部面法向由 cell_1 指向 cell_2, 边界面由流体指向外部
-for i, j, k in ((0, 0, 0), (nt // 3, nr // 2, nz // 2), (nt - 1, nr - 1, nz - 1)):
-  radial = (cos_t[i], sin_t[i], 0.0)
-  tangent = (-sin_t[i], cos_t[i], 0.0)
-  assert dot(normal(loop_i(i, j, k)), tangent) > 0, 'i 向面法向应朝 +θ'
-  assert dot(normal(loop_j(i, j, k)), radial) > 0, 'j 向面法向应朝 +r'
-  assert dot(normal(loop_k(i, j, k)), (0.0, 0.0, 1.0)) > 0, 'k 向面法向应朝 +z'
-  assert dot(normal(reverse(loop_j(i, 0, k))), radial) < 0, '圆柱面法向应朝 -r'
-  assert dot(normal(reverse(loop_k(i, j, 0))), (0.0, 0.0, 1.0)) < 0, '低侧对称面法向应朝 -z'
-  assert dot(normal(loop_k(i, j, nz)), (0.0, 0.0, 1.0)) > 0, '高侧对称面法向应朝 +z'
+def midpoint(loop):
+  a, b, c, d = loop
+  return (
+    (XS[a] + XS[b] + XS[c] + XS[d]) * 0.25,
+    (YS[a] + YS[b] + YS[c] + YS[d]) * 0.25,
+    (ZS[a] + ZS[b] + ZS[c] + ZS[d]) * 0.25,
+  )
 
 
-def row(face, loop, left, right):
+def face_error(loop):
+  a, b, c, d = loop
+  if a == b or a == c or a == d or b == c or b == d or c == d:
+    return '顶点重复'
+  for p, r in ((a, b), (b, c), (c, d), (d, a)):
+    if (NI[p] != NI[r]) + (NJ[p] != NJ[r]) + (NK[p] != NK[r]) != 1:
+      return '相邻顶点不是同一条网格边, 环序被破坏'
+  for p, r in ((a, c), (b, d)):
+    if (NI[p] != NI[r]) + (NJ[p] != NJ[r]) + (NK[p] != NK[r]) != 2:
+      return '对角线上的顶点被写成相邻'
+  return None
+
+
+def cell_error(loops):
+  sides = [set(loop) for loop in loops]
+  shared = set().union(*sides)
+  if len(shared) != 8:
+    return f'不是八节点六面体(共 {len(shared)} 个顶点)'
+  for p in (0, 2, 4):
+    if not sides[p].isdisjoint(sides[p + 1]):
+      return f'f{p + 1} 与 f{p + 2} 不是相对面'
+  for p in range(6):
+    for r in range(p + 1, 6):
+      if r == p + 1 and p % 2 == 0:
+        continue
+      if len(sides[p] & sides[r]) != 2:
+        return f'f{p + 1} 与 f{r + 1} 未共用一条棱'
+  return None
+
+
+def face_row(face, loop, left, right):
+  bad = face_error(loop)
+  if bad is not None:
+    raise SystemExit(f'face {face} (cell {left} / {right}): {bad}')
+  nor, mid = normal(loop), midpoint(loop)
+  # 法向必须由 cell_1 指向 cell_2, 边界面则由 cell_1 指向外部
+  s = cell_center(left)
+  if nor[0] * (mid[0] - s[0]) + nor[1] * (mid[1] - s[1]) + nor[2] * (mid[2] - s[2]) <= 0.0:
+    raise SystemExit(f'face {face}: 法向未由 cell {left} 指向外侧')
+  if right:
+    s = cell_center(right)
+    if nor[0] * (mid[0] - s[0]) + nor[1] * (mid[1] - s[1]) + nor[2] * (mid[2] - s[2]) >= 0.0:
+      raise SystemExit(f'face {face}: 法向未由 cell {right} 指向内侧')
   return f'{face} {loop[0]} {loop[1]} {loop[2]} {loop[3]} {left} {right}\n'
+
+
+def cell_row(i, j, k):
+  sides = cell_sides(i, j, k)
+  bad = cell_error([loop for _, loop in sides])
+  if bad is not None:
+    raise SystemExit(f'cell {cell(i, j, k)} (i={i}, j={j}, k={k}): {bad}')
+  return ' '.join(str(v) for v in (cell(i, j, k), *(face for face, _ in sides))) + '\n'
 
 
 with (out / 'mesh.txt').open('w') as f:
   f.write(
-    f'{nt * (nr + 1) * (nz + 1)} {nfaces} {nt * nr * nz} 4\n'
+    f'{nnode} {nfaces} {ncells} 4\n'
     'interior = INTER\ncylinder = VIL\nfarfield = FAR\nspan = SYM\n(node)\n'
   )
   f.writelines(
@@ -135,57 +223,49 @@ with (out / 'mesh.txt').open('w') as f:
   )
   f.write('(end)\n(edge)\ninterior\n')
   f.writelines(
-    row(face_i(i, j, k), loop_i(i, j, k), cell(i - 1, j, k), cell(i, j, k))
+    face_row(face_i(i, j, k), loop_i(i, j, k), cell(i - 1, j, k), cell(i, j, k))
     for k in range(nz)
     for j in range(nr)
     for i in range(nt)
   )
   f.writelines(
-    row(face_j(i, j, k), loop_j(i, j, k), cell(i, j - 1, k), cell(i, j, k))
+    face_row(face_j(i, j, k), loop_j(i, j, k), cell(i, j - 1, k), cell(i, j, k))
     for k in range(nz)
     for j in range(1, nr)
     for i in range(nt)
   )
   f.writelines(
-    row(face_k(i, j, k), loop_k(i, j, k), cell(i, j, k - 1), cell(i, j, k))
+    face_row(face_k(i, j, k), loop_k(i, j, k), cell(i, j, k - 1), cell(i, j, k))
     for k in range(1, nz)
     for j in range(nr)
     for i in range(nt)
   )
   f.write('(end)\ncylinder\n')
   f.writelines(
-    row(face_cyl(i, k), reverse(loop_j(i, 0, k)), cell(i, 0, k), 0)
+    face_row(face_cyl(i, k), reverse(loop_j(i, 0, k)), cell(i, 0, k), 0)
     for k in range(nz)
     for i in range(nt)
   )
   f.write('(end)\nfarfield\n')
   f.writelines(
-    row(face_far(i, k), loop_j(i, nr, k), cell(i, nr - 1, k), 0)
+    face_row(face_far(i, k), loop_j(i, nr, k), cell(i, nr - 1, k), 0)
     for k in range(nz)
     for i in range(nt)
   )
   f.write('(end)\nspan\n')
   f.writelines(
-    row(face_sym(i, j, 0), reverse(loop_k(i, j, 0)), cell(i, j, 0), 0)
+    face_row(face_sym(i, j, 0), reverse(loop_k(i, j, 0)), cell(i, j, 0), 0)
     for j in range(nr)
     for i in range(nt)
   )
   f.writelines(
-    row(face_sym(i, j, 1), loop_k(i, j, nz), cell(i, j, nz - 1), 0)
+    face_row(face_sym(i, j, 1), loop_k(i, j, nz), cell(i, j, nz - 1), 0)
     for j in range(nr)
     for i in range(nt)
   )
   f.write('(end)\n(end)\n(cell)\n')
   f.writelines(
-    f'{cell(i, j, k)} '
-    f'{face_i(i, j, k)} {face_i(i + 1, j, k)} '
-    f'{face_cyl(i, k) if j == 0 else face_j(i, j, k)} '
-    f'{face_far(i, k) if j == nr - 1 else face_j(i, j + 1, k)} '
-    f'{face_sym(i, j, 0) if k == 0 else face_k(i, j, k)} '
-    f'{face_sym(i, j, 1) if k == nz - 1 else face_k(i, j, k + 1)}\n'
-    for k in range(nz)
-    for j in range(nr)
-    for i in range(nt)
+    cell_row(i, j, k) for k in range(nz) for j in range(nr) for i in range(nt)
   )
   f.write('(end)\n(all end)\n')
 # 结构化邻接表: 首行 nt nr nz, 随后每行 i,j,k,cell
@@ -197,6 +277,7 @@ with (out / 'mesh_struct.txt').open('w') as f:
     for j in range(nr)
     for i in range(nt)
   )
+print(f'verified {nfaces} faces (环序/无对角相邻) and {ncells} cells (f1-f2/f3-f4/f5-f6 相对, 法向朝外)')
 T, Ma, Re, diameter = 300.0, 0.2, 1000.0, 1.0
 R = 287.05
 mu = 1.716e-5 * (T / 273.15) ** 1.5 * (273.15 + 110.4) / (T + 110.4)
