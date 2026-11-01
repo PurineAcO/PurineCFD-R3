@@ -5,6 +5,10 @@
 #include <stdio.h>
 #include <string>
 
+/*
+在设计初期,我们会在所有文件中硬编码六面体棱柱层网格,在以后会逐步修改
+*/
+
 // 读取非结构网格
 bool readmesh(const char* meshpath);
 // 返回一个标识
@@ -31,22 +35,54 @@ inline bool readmesh(const char* meshpath){
         typetoken(name_before, name_after);
     }
     
-    fgets(buf, sizeof(buf), meshfp);
-    fgets(buf, sizeof(buf), meshfp);
+    fgets(buf, sizeof(buf), meshfp);  // eaten \n
+    fgets(buf, sizeof(buf), meshfp);  // eaten (node)
     for(int i=0;i<cc::node_num;i++){
         int index;double x,y,z;
         fscanf_s(meshfp,"%d %lf %lf %lf",&index,&x,&y,&z);
         cc::NodeList[i] = cc::node_class(index,x,y,z);
     }
-    fgets(buf, sizeof(buf), meshfp);
-    fgets(buf, sizeof(buf), meshfp);
-    printf("%s",buf);
+    fgets(buf, sizeof(buf), meshfp);  // eaten \n
+    fgets(buf, sizeof(buf), meshfp);  // eaten (end)
+    fgets(buf, sizeof(buf), meshfp);  // eaten (edge)
+    int facecnt = 0,typecnt = 0; 
+    while(facecnt < cc::face_num){
+        int index,p1,p2,p3,p4,c1,c2;
+        int fcnt = fscanf_s(meshfp, "%d%d%d%d%d%d%d" ,&index,&p1,&p2,&p3,&p4,&c1,&c2);
+        if(fcnt == 0){ // face type token
+            fgets(buf, sizeof(buf), meshfp);
+            if(strncmp(buf, "(end)",5) == 0){typecnt++;continue;} // end token
+            else if(strncmp(buf, cc::bounds[typecnt].name.c_str(),cc::bounds[typecnt].name.size()) == 0){continue;} // start token
+            else return false; // error token
+        }
+        cc::FaceList[facecnt] = cc::face_class(index,p1,p2,p3,p4,c1,c2,cc::bounds[typecnt].type);
+        if(cc::bounds[typecnt].type != cc::INTER){cc::bounds[typecnt].fs.push_back(&cc::FaceList[facecnt]);}
+        facecnt++;
+    }
+    fgets(buf, sizeof(buf), meshfp);  // eaten \n
+    fgets(buf, sizeof(buf), meshfp);  // eaten (end)
+    fgets(buf, sizeof(buf), meshfp);  // eaten (end)
+    fgets(buf, sizeof(buf), meshfp);  // eaten (cell)
+    for(int i=0;i<cc::cell_num;i++){
+        int index,f1,f2,f3,f4,f5,f6;
+        fscanf_s(meshfp, "%d%d%d%d%d%d%d",&index,&f1,&f2,&f3,&f4,&f5,&f6);
+        cc::CellList[i] = cc::cell_class(index,f1,f2,f3,f4,f5,f6);
+        for(int k=0;k<6;k++){
+            cc::face_class* fk = cc::CellList[i].faces[k];
+            cc::CellList[i].nei[k] = (fk->nei[0] == &cc::CellList[i]) ? fk->nei[1] : fk->nei[0];
+        }
+    }
+    fgets(buf, sizeof(buf), meshfp);  // eaten \n
+    fgets(buf, sizeof(buf), meshfp);  // eaten (end)
+    fgets(buf, sizeof(buf), meshfp);  // eaten (all end)
+    printf("%s if you see this token,read mesh is over!\n",buf);
     fclose(meshfp);
     return true;
 }
 
 inline void typetoken(char *a, char *b){
-    if(strcmp(b,"WALL") == 0){cc::bounds.emplace_back(std::string(a),cc::WALL);}
+    if(strcmp(b,"WALL") == 0 || strcmp(b,"VIL") == 0){cc::bounds.emplace_back(std::string(a),cc::WALL);}
     else if(strcmp(b,"FAR") == 0){cc::bounds.emplace_back(std::string(a),cc::FAR);}
     else if(strcmp(b,"SYM") == 0){cc::bounds.emplace_back(std::string(a),cc::SYM);}
+    else if(strcmp(b, "INTER") == 0){cc::bounds.emplace_back(std::string(a),cc::INTER);}
 }

@@ -21,9 +21,9 @@ struct bound {
     short type = INTER;           // 类型
     std::vector<face_class*> fs;  // 面
     bound() = default;
-    bound(std::string name_,int type_);
+    bound(std::string name_,short type_);
 };
-inline bound::bound(std::string name_,int type_):name(name_),type(type_) {}
+inline bound::bound(std::string name_,short type_):name(name_),type(type_) {}
 
 inline std::vector<node_class> NodeList;   // 节点
 inline std::vector<cell_class> CellList;   // 网格
@@ -62,7 +62,7 @@ struct face_class {
     #if SAchosen
         SA::turbulence tur;       // 湍流
     #elif SSTchosen
-        SST::turbulence tur;       // 湍流
+        SST::turbulence tur;      // 湍流
     #endif
     vecp phynei[2];               // 左右插值物理量
     struct otphy otnei[2];        // 左右引申物理量
@@ -72,8 +72,15 @@ struct face_class {
     face_class() = default;
     face_class(int index_, int p1_, int p2_, int p3_, int p4_, int c1_, int c2_, short type_);
 };
+
+inline face_class::face_class(int index_, int p1_, int p2_, int p3_, int p4_, int c1_, int c2_, short type_):
+    index(index_),type(type_){
+        node[0]=&NodeList[p1_-1];node[1]=&NodeList[p2_-1];node[2]=&NodeList[p3_-1];node[3]=&NodeList[p4_-1];
+        nei[0] = c1_ > 0 ? &CellList[c1_-1] : nullptr;
+        nei[1] = c2_ > 0 ? &CellList[c2_-1] : nullptr;}
 }
 
+// 格子
 namespace cc {
 
 struct cell_class {
@@ -110,5 +117,13 @@ struct cell_class {
     cell_class() = default;
     cell_class(int index_, int f1_, int f2_, int f3_, int f4_, int f5_, int f6_);
 };
+
+inline cell_class* othercell(cell_class* c,face_class* f){
+    return f->nei[0] == c ? f->nei[1] : f->nei[0];
+}
+
+inline cell_class::cell_class(int index_, int f1_, int f2_, int f3_, int f4_, int f5_, int f6_):index(index_)
+    {faces[0]=&FaceList[f1_-1];faces[1]=&FaceList[f2_-1];faces[2]=&FaceList[f3_-1];faces[3]=&FaceList[f4_-1];
+    faces[4]=&FaceList[f5_-1];faces[5]=&FaceList[f6_-1];}
 
 } 

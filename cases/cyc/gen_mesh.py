@@ -187,6 +187,7 @@ with (out / 'mesh.txt').open('w') as f:
     for j in range(nr)
     for i in range(nt)
   )
+  f.write('(end)\n(all end)\n')
 # 结构化邻接表: 首行 nt nr nz, 随后每行 i,j,k,cell
 with (out / 'mesh_struct.txt').open('w') as f:
   f.write(f'{nt} {nr} {nz}\n')

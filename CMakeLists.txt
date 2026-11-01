@@ -48,3 +48,10 @@ purine_add_executable(PurineCFD-R3 src/main.cpp
   src/physic.hpp
   src/grad.hpp
   src/readmesh.hpp)
+
+include(CTest)
+
+if(BUILD_TESTING)
+  purine_add_executable(mesh_check tests/mesh_check.cpp)
+  add_test(NAME mesh_check COMMAND mesh_check WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+endif()
