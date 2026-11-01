@@ -1,0 +1,9 @@
+{
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "C_Cpp.default.cppStandard": "c++17",
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/out/build/clang-debug/compile_commands.json",
+    "clangd.arguments": [
+        "--compile-commands-dir=out/build/clang-debug",
+        "--background-index"
+    ]
+}
