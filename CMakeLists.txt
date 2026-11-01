@@ -44,4 +44,6 @@ function(purine_add_executable name)
   endif()
 endfunction()
 
-purine_add_executable(PurineCFD-R3 src/main.cpp)
+purine_add_executable(PurineCFD-R3 src/main.cpp
+  src/physic.hpp
+  src/grad.hpp)
