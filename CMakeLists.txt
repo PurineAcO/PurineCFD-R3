@@ -46,4 +46,5 @@ endfunction()
 
 purine_add_executable(PurineCFD-R3 src/main.cpp
   src/physic.hpp
-  src/grad.hpp)
+  src/grad.hpp
+  src/readmesh.hpp)

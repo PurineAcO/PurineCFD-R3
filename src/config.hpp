@@ -1,3 +1,4 @@
+#pragma once
 #include <cmath>
 
 // 向量和算子
@@ -169,12 +170,19 @@ inline constexpr short FAR = 0;
 inline constexpr short VIL = 1;
 inline constexpr short POL = 2;
 inline constexpr short INTER = 3;
+inline constexpr short SYM = 4;
+inline constexpr short WALL = 5;
 // 湍流模型开关
-#define SSTchosen 1
-#define SAchosen 0
+#define SSTchosen 0
+#define SAchosen 1
 // 耗散开关
 #define ROEchosen 0
 #define JSTchosen 1
 // URANS选项
 #define URANS 1;
+// 统计量
+inline int cell_num = 0;  // 网格数目
+inline int face_num = 0;  // 面数目
+inline int node_num = 0;  // 节点数目
+inline int type_num = 0;  // 边界类型数目
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include <vector>
 
 #include "config.hpp"
@@ -16,9 +17,13 @@ struct cell_class; // 网格
 struct face_class; // 面
 struct node_class; // 节点
 struct bound {
+    std::string name;             // 名称
     short type = INTER;           // 类型
     std::vector<face_class*> fs;  // 面
+    bound() = default;
+    bound(std::string name_,int type_);
 };
+inline bound::bound(std::string name_,int type_):name(name_),type(type_) {}
 
 inline std::vector<node_class> NodeList;   // 节点
 inline std::vector<cell_class> CellList;   // 网格
@@ -26,20 +31,17 @@ inline std::vector<cell_class> GhostList;  // 虚网格
 inline std::vector<face_class> FaceList;   // 面
 inline std::vector<bound> bounds; // 边界
 
-inline int cell_num = 0;  // 网格数目
-inline int face_num = 0;  // 面数目
-inline int node_num = 0;  // 节点数目
-
 }
 
 // 节点
 namespace cc {
 struct node_class {
-    int number = 0;                    // 节点编号
+    int index = 0;                    // 节点编号
     double x = 0.0, y = 0.0, z = 0.0; // 节点坐标
     node_class() = default;
     node_class(int number_, double x_, double y_, double z_);
 };
+inline node_class::node_class(int number_,double x_,double y_,double z_):index(number_),x(x_),y(y_),z(z_){}
 } 
 
 // 面
@@ -57,10 +59,10 @@ struct face_class {
     vecgrad phgrad;               // 面法向梯度
     struct otphy otphy;           // 引申物理量
     double un = 0.0;              // 面法向速度
-    #ifdef SAchosen
+    #if SAchosen
         SA::turbulence tur;       // 湍流
     #elif SSTchosen
-        SST::turbulene tur;       // 湍流
+        SST::turbulence tur;       // 湍流
     #endif
     vecp phynei[2];               // 左右插值物理量
     struct otphy otnei[2];        // 左右引申物理量
@@ -85,20 +87,20 @@ struct cell_class {
     vec3 proj;                                 // 各方向投影面积和,用于当地时间步长
     double localdt = 0.0;                      // 当地时间步长
 
-    vecp phy;             // 物理量
-    struct otphy otphy;   // 引申物理量
-    vec5 conser;          // 守恒量
-    vec5 conserformer;    // 前期守恒量
-    vec5 lastconser;      // 上一时间步守恒量
-    vec5 convect;         // 无粘对流项
-    vec5 visflux;         // 黏性通量
-    vecgrad phgrad;       // 物理量梯度
-    #ifdef JSTchosen
+    vecp phy;                                   // 物理量
+    struct otphy otphy;                         // 引申物理量
+    vec5 conser;                                // 守恒量
+    vec5 conserformer;                          // 前期守恒量
+    vec5 lastconser;                            // 上一时间步守恒量
+    vec5 convect;                               // 无粘对流项
+    vec5 visflux;                               // 黏性通量
+    vecgrad phgrad;                             // 物理量梯度
+    #if JSTchosen
         JST::dissipation diss;     // 耗散项
     #elif ROEchosen
         ROE::dissipation diss;     // 耗散项
     #endif
-    #ifdef SAchosen
+    #if SAchosen
         SA::turbulence tur;       // 湍流
     #elif SSTchosen
         SST::turbulence tur;      // 湍流

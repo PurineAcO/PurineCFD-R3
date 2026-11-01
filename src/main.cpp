@@ -1,7 +1,7 @@
-#include <iostream>
+// #include <iostream>
+#include "readmesh.hpp"
 
 int main(){
-    std::cout << "1" << std::endl;
-
+    readmesh("cases/cyc/mesh.txt");
     return 0;
 }
