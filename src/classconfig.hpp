@@ -4,7 +4,7 @@
 
 #include "config.hpp"
 
-#define allface(cell) for (int i = 0; i < (cell).ecnt; i++)
+#define allface(cell) for (int i = 0; i < (cell).fcnt; i++)
 #define allcell for (int i = 0; i < cc::cell_num; i++)
 #define icell(i) cc::CellList[i]
 #define allfac for (int i = 0; i < cc::face_num; i++)
@@ -36,12 +36,12 @@ inline std::vector<bound> bounds; // 边界
 // 节点
 namespace cc {
 struct node_class {
-    int index = 0;                    // 节点编号
-    double x = 0.0, y = 0.0, z = 0.0; // 节点坐标
+    int index = 0;    // 节点编号
+    vec3 p;           // 节点坐标             
     node_class() = default;
     node_class(int number_, double x_, double y_, double z_);
 };
-inline node_class::node_class(int number_,double x_,double y_,double z_):index(number_),x(x_),y(y_),z(z_){}
+inline node_class::node_class(int number_,double x_,double y_,double z_):index(number_),p(vec3(x_,y_,z_)){}
 } 
 
 // 面
@@ -49,6 +49,7 @@ namespace cc {
 struct face_class {
     int index = 0;                // 面编号
     short type = INTER;           // 面类型
+    short pcnt = 4;               // 节点数
     node_class* node[4] = {};     // 面邻接点指针(按右手定则排序)
     vec3 mid = {};                // 面中点坐标
     vec3 nor = {};                // 带面积法向量
@@ -70,11 +71,11 @@ struct face_class {
     vec5 visflux;                 // 黏性通量
 
     face_class() = default;
-    face_class(int index_, int p1_, int p2_, int p3_, int p4_, int c1_, int c2_, short type_);
+    face_class(int index_, int p1_, int p2_, int p3_, int p4_, int c1_, int c2_, short type_,short pcnt_);
 };
 
-inline face_class::face_class(int index_, int p1_, int p2_, int p3_, int p4_, int c1_, int c2_, short type_):
-    index(index_),type(type_){
+inline face_class::face_class(int index_, int p1_, int p2_, int p3_, int p4_, int c1_, int c2_, short type_,short pcnt_):
+    index(index_),type(type_),pcnt(pcnt_){
         node[0]=&NodeList[p1_-1];node[1]=&NodeList[p2_-1];node[2]=&NodeList[p3_-1];node[3]=&NodeList[p4_-1];
         nei[0] = c1_ > 0 ? &CellList[c1_-1] : nullptr;
         nei[1] = c2_ > 0 ? &CellList[c2_-1] : nullptr;}
@@ -85,7 +86,7 @@ namespace cc {
 
 struct cell_class {
     int index = 0;                             // 编号
-    int ecnt = 6;                              // 面邻接边个数
+    int fcnt = 6;                              // 面数
     bool fnorm[6] = {};                        // 邻接面外法向标记
     cell_class* nei[6] = {};                   // 邻接网格指针
     face_class* faces[6] = {};                 // 邻接面指针
@@ -115,15 +116,16 @@ struct cell_class {
     LSCBmatrix LSCB;      // LSCB梯度预处理矩阵
 
     cell_class() = default;
-    cell_class(int index_, int f1_, int f2_, int f3_, int f4_, int f5_, int f6_);
+    cell_class(int index_, int f1_, int f2_, int f3_, int f4_, int f5_, int f6_,int fcnt_);
 };
 
 inline cell_class* othercell(cell_class* c,face_class* f){
     return f->nei[0] == c ? f->nei[1] : f->nei[0];
 }
 
-inline cell_class::cell_class(int index_, int f1_, int f2_, int f3_, int f4_, int f5_, int f6_):index(index_)
-    {faces[0]=&FaceList[f1_-1];faces[1]=&FaceList[f2_-1];faces[2]=&FaceList[f3_-1];faces[3]=&FaceList[f4_-1];
-    faces[4]=&FaceList[f5_-1];faces[5]=&FaceList[f6_-1];}
+inline cell_class::cell_class(int index_, int f1_, int f2_, int f3_, int f4_, int f5_, int f6_,int fcnt_):
+    index(index_),fcnt(fcnt_){
+        faces[0]=&FaceList[f1_-1];faces[1]=&FaceList[f2_-1];faces[2]=&FaceList[f3_-1];faces[3]=&FaceList[f4_-1];
+        faces[4]=&FaceList[f5_-1];faces[5]=&FaceList[f6_-1];}
 
 } 

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "classconfig.hpp"
 #include "config.hpp"
 #include <cstdio>
@@ -55,7 +57,7 @@ inline bool readmesh(const char* meshpath){
             else if(strncmp(buf, cc::bounds[typecnt].name.c_str(),cc::bounds[typecnt].name.size()) == 0){continue;} // start token
             else return false; // error token
         }
-        cc::FaceList[facecnt] = cc::face_class(index,p1,p2,p3,p4,c1,c2,cc::bounds[typecnt].type);
+        cc::FaceList[facecnt] = cc::face_class(index,p1,p2,p3,p4,c1,c2,cc::bounds[typecnt].type,fcnt-3);
         if(cc::bounds[typecnt].type != cc::INTER){cc::bounds[typecnt].fs.push_back(&cc::FaceList[facecnt]);}
         facecnt++;
     }
@@ -64,10 +66,10 @@ inline bool readmesh(const char* meshpath){
     fgets(buf, sizeof(buf), meshfp);  // eaten (end)
     fgets(buf, sizeof(buf), meshfp);  // eaten (cell)
     for(int i=0;i<cc::cell_num;i++){
-        int index,f1,f2,f3,f4,f5,f6;
-        fscanf_s(meshfp, "%d%d%d%d%d%d%d",&index,&f1,&f2,&f3,&f4,&f5,&f6);
-        cc::CellList[i] = cc::cell_class(index,f1,f2,f3,f4,f5,f6);
-        for(int k=0;k<6;k++){
+        int index,f1,f2,f3,f4,f5,f6,fcnt;
+        fcnt = fscanf_s(meshfp, "%d%d%d%d%d%d%d", &index,&f1,&f2,&f3,&f4,&f5,&f6) - 1;
+        cc::CellList[i] = cc::cell_class(index,f1,f2,f3,f4,f5,f6,fcnt);
+        for(int k=0;k<fcnt;k++){
             cc::face_class* fk = cc::CellList[i].faces[k];
             cc::CellList[i].nei[k] = (fk->nei[0] == &cc::CellList[i]) ? fk->nei[1] : fk->nei[0];
         }
@@ -81,8 +83,10 @@ inline bool readmesh(const char* meshpath){
 }
 
 inline void typetoken(char *a, char *b){
-    if(strcmp(b,"WALL") == 0 || strcmp(b,"VIL") == 0){cc::bounds.emplace_back(std::string(a),cc::WALL);}
+    if(strcmp(b,"WALL") == 0){cc::bounds.emplace_back(std::string(a),cc::WALL);}
+    else if(strcmp(b,"VIL") == 0){cc::bounds.emplace_back(std::string(a),cc::VIL);}
     else if(strcmp(b,"FAR") == 0){cc::bounds.emplace_back(std::string(a),cc::FAR);}
     else if(strcmp(b,"SYM") == 0){cc::bounds.emplace_back(std::string(a),cc::SYM);}
-    else if(strcmp(b, "INTER") == 0){cc::bounds.emplace_back(std::string(a),cc::INTER);}
+    else if(strcmp(b,"POL") == 0){cc::bounds.emplace_back(std::string(a),cc::POL);}
+    else if(strcmp(b,"INTER") == 0){cc::bounds.emplace_back(std::string(a),cc::INTER);}
 }

@@ -27,7 +27,6 @@ nnode = nt * (nr + 1) * (nz + 1)
 ncells = nt * nr * nz
 
 
-# 节点编号: i(环向) 周期共享, j(径向) 与 k(展向) 均为独立平面
 def node(j, i, k):
   return (k * (nr + 1) + j) * nt + (i % nt) + 1
 
@@ -36,7 +35,6 @@ def cell(i, j, k):
   return (i % nt) + nt * (j + nr * k) + 1
 
 
-# 节点查找表(下标即节点编号): 结构化索引与坐标, 供拓扑/几何校验使用
 def table(typecode):
   return array.array(typecode, [0]) * (nnode + 1)
 
@@ -54,13 +52,12 @@ for k in range(nz + 1):
     YS[base:base + nt] = array.array('d', [radii[j] * s for s in sin_t])
     ZS[base:base + nt] = array.array('d', [zs[k]]) * nt
 
-# 面按块连续编号, 顺序与写出顺序一致: 内部 i 向 -> 内部 j 向 -> 内部 k 向 -> 壁面 -> 远场 -> 展向对称
-n_i = nt * nr * nz  # i 向面 (θ 向法向), 全部内部
-n_j = nt * (nr - 1) * nz  # j 向面 (r 向法向), 仅内部
-n_k = nt * nr * (nz - 1)  # k 向面 (z 向法向), 仅内部
-n_cyl = nt * nz  # 圆柱壁面
-n_far = nt * nz  # 远场
-n_sym = 2 * nt * nr  # 展向两侧对称面
+n_i = nt * nr * nz
+n_j = nt * (nr - 1) * nz
+n_k = nt * nr * (nz - 1)
+n_cyl = nt * nz
+n_far = nt * nz
+n_sym = 2 * nt * nr
 nfaces = n_i + n_j + n_k + n_cyl + n_far + n_sym
 
 
@@ -88,7 +85,6 @@ def face_sym(i, j, side):
   return n_i + n_j + n_k + n_cyl + n_far + side * nt * nr + (i % nt) + nt * j + 1
 
 
-# 节点环按右手定则排列: 相邻两项必须是同一条网格边, 且首尾闭合
 def loop_i(i, j, k):
   return (node(j, i, k), node(j, i, k + 1), node(j + 1, i, k + 1), node(j + 1, i, k))
 
@@ -105,8 +101,6 @@ def reverse(loop):
   return (loop[0],) + loop[:0:-1]
 
 
-# 单元六个面: (面编号, 节点环). 1-2、3-4、5-6 依次为 i、j、k 三个方向的一对相对面.
-# 编号与节点环必须同源, 校验用的环就是写出到 mesh.txt 的那一份
 def cell_sides(i, j, k):
   return (
     (face_i(i, j, k), loop_i(i, j, k)),
@@ -191,7 +185,6 @@ def face_row(face, loop, left, right):
   if bad is not None:
     raise SystemExit(f'face {face} (cell {left} / {right}): {bad}')
   nor, mid = normal(loop), midpoint(loop)
-  # 法向必须由 cell_1 指向 cell_2, 边界面则由 cell_1 指向外部
   s = cell_center(left)
   if nor[0] * (mid[0] - s[0]) + nor[1] * (mid[1] - s[1]) + nor[2] * (mid[2] - s[2]) <= 0.0:
     raise SystemExit(f'face {face}: 法向未由 cell {left} 指向外侧')
@@ -213,7 +206,7 @@ def cell_row(i, j, k):
 with (out / 'mesh.txt').open('w') as f:
   f.write(
     f'{nnode} {nfaces} {ncells} 4\n'
-    'interior = INTER\ncylinder = VIL\nfarfield = FAR\nspan = SYM\n(node)\n'
+    'interior = INTER\ncylinder = WALL\nfarfield = FAR\nspan = SYM\n(node)\n'
   )
   f.writelines(
     f'{node(j, i, k)} {radii[j] * cos_t[i]:.16e} {radii[j] * sin_t[i]:.16e} {zs[k]:.16e}\n'
@@ -268,7 +261,6 @@ with (out / 'mesh.txt').open('w') as f:
     cell_row(i, j, k) for k in range(nz) for j in range(nr) for i in range(nt)
   )
   f.write('(end)\n(all end)\n')
-# 结构化邻接表: 首行 nt nr nz, 随后每行 i,j,k,cell
 with (out / 'mesh_struct.txt').open('w') as f:
   f.write(f'{nt} {nr} {nz}\n')
   f.writelines(

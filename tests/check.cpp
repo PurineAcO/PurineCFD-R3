@@ -1,4 +1,6 @@
+#include "geometry.hpp"
 #include "readmesh.hpp"
+#include <cmath>
 #include <cstdio>
 #include <vector>
 
@@ -12,7 +14,21 @@ void check(bool cond, const char* what) {
     ++failures;
 }
 
-} // namespace
+double outward_dot(const cc::face_class& f, const cc::cell_class& c) {
+    const cc::vec3 p0 = f.node[0]->p, p1 = f.node[1]->p;
+    const cc::vec3 p2 = f.node[2]->p, p3 = f.node[3]->p;
+    const cc::vec3 n = 0.5 * cc::cross(p2 - p0, p3 - p1);
+    const cc::vec3 mid = (p0 + p1 + p2 + p3) * 0.25;
+    return (f.nei[0] == &c ? 1.0 : -1.0) * cc::dot(mid, n);
+}
+
+double divergence_volume(const cc::cell_class& c) {
+    double v = 0.0;
+    for (int k = 0; k < c.fcnt; ++k) v += outward_dot(*c.faces[k], c);
+    return v / 3.0;
+}
+
+}
 
 int main() {
     if (!readmesh("cases/cyc/mesh.txt")) {
@@ -36,13 +52,12 @@ int main() {
     }
     check(bad_order == 0, "list position matches file index");
 
-    // 单元侧: 每个面确实属于该单元, 且邻接指针与面类型一致
     std::vector<int> refs(faces + 1, 0);
     int bad_link = 0;
     int bad_nei = 0;
     allcell {
         cc::cell_class& c = icell(i);
-        for (int k = 0; k < c.ecnt; ++k) {
+        for (int k = 0; k < c.fcnt; ++k) {
             const cc::face_class* f = c.faces[k];
             if (f->nei[0] != &c && f->nei[1] != &c) {
                 ++bad_link;
@@ -57,7 +72,6 @@ int main() {
     check(bad_link == 0, "every cell face lists that cell");
     check(bad_nei == 0, "cell neighbour agrees with face type");
 
-    // 面侧: 内部面被两个单元共享, 边界面被一个单元共享; 节点指针有效并统计使用
     std::vector<char> used(nodes, 0);
     int bad_ref = 0;
     int bad_node = 0;
@@ -83,6 +97,63 @@ int main() {
     std::size_t owned = 0;
     for (const cc::bound& b : cc::bounds) owned += b.fs.size();
     check(owned == static_cast<std::size_t>(boundary), "bounds own every boundary face");
+
+    double worst = 0.0;
+    double sum_tet = 0.0;
+    double sum_div = 0.0;
+    int bad_vol = 0;
+    allcell {
+        cc::cell_class& c = icell(i);
+        const double v_tet = cube_volumn_cen(c).first;
+        const double v_div = divergence_volume(c);
+        sum_tet += v_tet;
+        sum_div += v_div;
+        const double rel = std::abs(v_tet - v_div) / std::abs(v_div);
+        if (!(rel <= 1e-9)) ++bad_vol;
+        if (rel > worst) worst = rel;
+    }
+    check(bad_vol == 0, "hex volume: tetrahedron split matches divergence theorem");
+
+    double sum_edge = 0.0;
+    for (const cc::bound& b : cc::bounds) {
+        if (b.type == cc::INTER) continue;
+        for (const cc::face_class* f : b.fs) {
+            sum_edge += outward_dot(*f, *f->nei[0]);
+        }
+    }
+    sum_edge /= 3.0;
+    check(std::abs(sum_tet - sum_edge) / std::abs(sum_edge) < 1e-9,
+          "total volume matches boundary-only integral");
+
+    double wall_r2 = 0.0, far_r2 = 0.0, z_lo = 0.0, z_hi = 0.0;
+    int wall_faces = 0;
+    std::vector<double> zs;
+    for (const cc::bound& b : cc::bounds) {
+        for (const cc::face_class* f : b.fs) {
+            for (const cc::node_class* n : f->node) {
+                const double r2 = n->p.x * n->p.x + n->p.y * n->p.y;
+                if (b.type == cc::WALL) wall_r2 = r2;
+                else if (b.type == cc::FAR) far_r2 = r2;
+                if (zs.empty()) { z_lo = z_hi = n->p.z; }
+                if (n->p.z < z_lo) z_lo = n->p.z;
+                if (n->p.z > z_hi) z_hi = n->p.z;
+                bool seen = false;
+                for (double z : zs) seen = seen || std::abs(z - n->p.z) < 1e-12;
+                if (!seen) zs.push_back(n->p.z);
+            }
+            wall_faces += b.type == cc::WALL;
+        }
+    }
+    const int nz = static_cast<int>(zs.size()) - 1;
+    const int nt = wall_faces > 0 && nz > 0 ? wall_faces / nz : 0;
+    const double pi = 3.14159265358979323846;
+    const double closed = nt > 0 ? 0.5 * nt * std::sin(2.0 * pi / nt) * (far_r2 - wall_r2) * (z_hi - z_lo) : 0.0;
+    check(nt > 0 && std::abs(sum_tet - closed) / std::abs(closed) < 1e-9,
+          "total volume matches polygon prism formula");
+
+    std::printf("volume: tet=%.9f div=%.9f edge=%.9f closed=%.9f (nt=%d nz=%d)\n", sum_tet, sum_div,
+                sum_edge, closed, nt, nz);
+    std::printf("volume: worst per-cell relative diff=%.3e\n", worst);
 
     std::printf("nodes=%zu faces=%zu cells=%zu bounds=%zu boundary_faces=%d\n", nodes, faces, cells,
                 cc::bounds.size(), boundary);

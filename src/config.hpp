@@ -146,7 +146,6 @@ struct dissipation;
 
 // LSCB的预留声明
 namespace cc {
-struct LSCBmatrix;
 struct LSCBmatrix {
     double Axx = 0.0;    // 对角xx
     double Axy = 0.0;    // 上三角xy
@@ -154,13 +153,35 @@ struct LSCBmatrix {
     double Ayy = 0.0;    // 对角yy
     double Ayz = 0.0;    // 上三角yz
     double Azz = 0.0;    // 对角zz
-    double dxi[6] = {};  // delta x
-    double dyi[6] = {};  // delta y
-    double dzi[6] = {};  // delta z
     double wi[6] = {};   // 范数权
-    // 解Ag=b
-    bool solve(const double b[3], double g[3]) const;
+    double invA[3][3] = {};   // 几何逆
+    // 清空
+    void clear();
+    // 形成几何逆
+    void form_invA();
+    // 解梯度方程
+    vec3 solve(vec3 dphi);
 };
+
+inline void LSCBmatrix::clear(){Axx = Ayy = Azz = Axy = Axz = Ayz = 0.0; }
+
+inline vec3 LSCBmatrix::solve(vec3 dphi){
+    return cc::vec3(invA[0][0]*dphi.x + invA[0][1]*dphi.y + invA[0][2]*dphi.z,
+                    invA[1][0]*dphi.x + invA[1][1]*dphi.y + invA[1][2]*dphi.z,
+                    invA[2][0]*dphi.x + invA[2][1]*dphi.y + invA[2][2]*dphi.z);
+}
+
+inline void LSCBmatrix::form_invA(){
+    invA[0][0] = Ayy*Azz - Ayz*Ayz;
+    invA[1][1] = Axx*Azz - Axz*Axz;
+    invA[2][2] = Axx*Ayy - Axy*Axy;
+    invA[0][1] = invA[1][0] = Axz*Ayz - Axy*Azz;
+    invA[0][2] = invA[2][0] = Axy*Ayz - Axz*Ayy;
+    invA[1][2] = invA[2][1] = Axy*Axz - Ayz*Axx;
+    const double det = Axx*invA[0][0] + Axy*invA[0][1] + Axz*invA[0][2];
+    for(int r=0;r<3;r++)
+        for(int s=0;s<3;s++) invA[r][s] /= det;
+}
 }
 
 // 设置区域
