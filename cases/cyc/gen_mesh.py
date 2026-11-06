@@ -206,7 +206,7 @@ def cell_row(i, j, k):
 with (out / 'mesh.txt').open('w') as f:
   f.write(
     f'{nnode} {nfaces} {ncells} 4\n'
-    'interior = INTER\ncylinder = WALL\nfarfield = FAR\nspan = SYM\n(node)\n'
+    'interior = INTER\ncylinder = WALL\nfarfield = FAR\nspan = WALL\n(node)\n'
   )
   f.writelines(
     f'{node(j, i, k)} {radii[j] * cos_t[i]:.16e} {radii[j] * sin_t[i]:.16e} {zs[k]:.16e}\n'
@@ -295,7 +295,7 @@ p = rho * R * T
       growth_ratio=q,
       span_length_D=span_length,
       span_spacing_D=span_length / nz,
-      span_boundary='symmetry',
+      span_boundary='wall',
     ),
     indent=2,
   )

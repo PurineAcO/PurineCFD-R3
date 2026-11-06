@@ -15,5 +15,5 @@
   "growth_ratio": 1.0562968698716024,
   "span_length_D": 0.5,
   "span_spacing_D": 0.05,
-  "span_boundary": "symmetry"
+  "span_boundary": "wall"
 }

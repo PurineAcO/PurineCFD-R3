@@ -85,17 +85,94 @@ inline vecgrad operator+(const vecgrad& a, const vecgrad& b) {
 }
 
 // 引申物理量
-struct otphy {
-    double a = 0.0;  // 声速
-    double p = 0.0;  // 压力
-    double e = 0.0;  // 单位质量总能量
-    double un = 0.0; // 法向速度
-    double mu = 0.0; // 层流粘性系数
-    otphy() = default;
-    otphy(double a_, double p_, double e_) : a(a_), p(p_), e(e_) {}
-    // 从原始物理量生成引申物理量
-    void form_otphy(const vecp& phy);
+struct otphy;
+
+// 五阶方阵
+struct mat5 {
+    double a[5][5] = {};
+    mat5& operator+=(const mat5& o);
+    mat5& operator*=(double k);
+    double* operator[](int r);
+    const double* operator[](int r) const;
+    void clear();
+    bool solve(vec5& b) const;
 };
+
+// 矩阵加法
+inline mat5 operator+(mat5 m, const mat5& o);
+// 矩阵数乘
+inline mat5 operator*(mat5 m, double k);
+// 矩阵数乘
+inline mat5 operator*(double k, mat5 m);
+// 矩阵乘向量
+inline vec5 operator*(const mat5& m, const vec5& v);
+
+inline mat5& mat5::operator+=(const mat5& o) {
+    for (int r = 0; r < 5; r++)
+        for (int c = 0; c < 5; c++) a[r][c] += o.a[r][c];
+    return *this;
+}
+
+inline mat5& mat5::operator*=(double k) {
+    for (int r = 0; r < 5; r++)
+        for (int c = 0; c < 5; c++) a[r][c] *= k;
+    return *this;
+}
+
+inline double* mat5::operator[](int r) { return a[r]; }
+
+inline void mat5::clear() {
+    for (int r = 0; r < 5; r++)
+        for (int c = 0; c < 5; c++) a[r][c] = 0.0;
+}
+
+inline bool mat5::solve(vec5& b) const {
+    double m[5][6];
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) m[i][j] = a[i][j];
+        m[i][5] = (&b.c)[i];
+    }
+    for (int k = 0; k < 5; k++) {
+        int p = k;
+        for (int i = k + 1; i < 5; i++) {
+            if (std::abs(m[i][k]) > std::abs(m[p][k])) p = i;
+        }
+        if (p != k) {
+            for (int j = 0; j < 6; j++) {
+                const double t = m[k][j];
+                m[k][j] = m[p][j];
+                m[p][j] = t;
+            }
+        }
+        if (m[k][k] == 0.0) return false;
+        for (int i = k + 1; i < 5; i++) {
+            const double f = m[i][k] / m[k][k];
+            for (int j = k; j < 6; j++) m[i][j] -= f * m[k][j];
+        }
+    }
+    double x[5];
+    for (int i = 4; i >= 0; i--) {
+        double s = m[i][5];
+        for (int j = i + 1; j < 5; j++) s -= m[i][j] * x[j];
+        x[i] = s / m[i][i];
+    }
+    b = vec5(x[0], x[1], x[2], x[3], x[4]);
+    return true;
+}
+
+inline const double* mat5::operator[](int r) const { return a[r]; }
+
+inline mat5 operator+(mat5 m, const mat5& o) { return m += o; }inline mat5 operator*(mat5 m, double k) { return m *= k; }
+
+inline mat5 operator*(double k, mat5 m) { return m *= k; }
+
+inline vec5 operator*(const mat5& m, const vec5& v) {
+    return vec5(m.a[0][0] * v.c + m.a[0][1] * v.x + m.a[0][2] * v.y + m.a[0][3] * v.z + m.a[0][4] * v.e,
+                m.a[1][0] * v.c + m.a[1][1] * v.x + m.a[1][2] * v.y + m.a[1][3] * v.z + m.a[1][4] * v.e,
+                m.a[2][0] * v.c + m.a[2][1] * v.x + m.a[2][2] * v.y + m.a[2][3] * v.z + m.a[2][4] * v.e,
+                m.a[3][0] * v.c + m.a[3][1] * v.x + m.a[3][2] * v.y + m.a[3][3] * v.z + m.a[3][4] * v.e,
+                m.a[4][0] * v.c + m.a[4][1] * v.x + m.a[4][2] * v.y + m.a[4][3] * v.z + m.a[4][4] * v.e);
+}
 
 } 
 
@@ -103,24 +180,7 @@ struct otphy {
 namespace SA{
 
 // 湍流变量
-struct turbulence {
-    double miubl = 0.0;        // SA工作变量
-    double miubl_former = 0.0; // 上一物理时间miubl
-    double sad = 0.0;          // 到最近壁面中点的距离
-    cc::vec3 miublgrad;            // miubl梯度
-    double mueff = 0.0;        // 有效粘性系数
-    double chi = 0.0;          // 湍流粘度比
-    double fv1 = 0.0;          // 粘度阻尼函数
-    double ft2 = 0.0;          // 转捩控制函数
-    double fv2 = 0.0;          // 涡量辅助函数
-    double Omega = 0.0;        // 涡量
-    double Sbl = 0.0;          // 修正涡量
-    double S2 = 0.0;           // 应变率张量模
-    double r = 0.0;            // 无量纲距离I
-    double g = 0.0;            // 无量纲距离II
-    double fw = 0.0;           // 破坏项控制函数
-    double diag = 0.0;         // SA方程隐式对角
-};
+struct turbulence; 
 
 } 
 
@@ -184,6 +244,17 @@ inline void LSCBmatrix::form_invA(){
 }
 }
 
+// 流场边界条件
+namespace boundary_settings {
+struct FARconfig{
+    double p;
+    double Ma;
+    double T;
+    double AOA;
+    double chi;
+};
+}
+
 // 设置区域
 namespace cc {
 // 支持的边界条件
@@ -206,4 +277,18 @@ inline int cell_num = 0;  // 网格数目
 inline int face_num = 0;  // 面数目
 inline int node_num = 0;  // 节点数目
 inline int type_num = 0;  // 边界类型数目
+// 无粘通量格式
+inline char scheme = 'R';
+// 是否瞬态
+inline bool urans = false;
+// OpenMP线程数, 0表示自动选择
+inline int threads = 0;
+// 边界条件
+inline boundary_settings::FARconfig FAR_config = {22.9,0.2,300,0.0,3.0};
+
+}
+
+// 伪时间步参数
+namespace fatime {
+inline double CFL = 1.0;
 }

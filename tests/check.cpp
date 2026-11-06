@@ -1,4 +1,5 @@
 #include "geometry.hpp"
+#include "implict.hpp"
 #include "readmesh.hpp"
 #include <cmath>
 #include <cstdio>
@@ -28,6 +29,40 @@ double divergence_volume(const cc::cell_class& c) {
     return v / 3.0;
 }
 
+}
+
+
+static cc::vec5 phys_flux_n(const cc::vec3& nor, const cc::vec5& q) {
+    const double rho = q.c, u = q.x / rho, v = q.y / rho, w = q.z / rho;
+    const double ke = 0.5 * (u * u + v * v + w * w);
+    const double p = (cc::gamma - 1.0) * (q.e - q.c * ke);
+    const double un = u * nor.x + v * nor.y + w * nor.z;
+    return cc::vec5(rho * un, rho * u * un + p * nor.x, rho * v * un + p * nor.y,
+                    rho * w * un + p * nor.z, un * (q.e + p));
+}
+
+static void check_euler_jacobi() {
+    cc::face_class f;
+    f.nor = cc::vec3(1.3, -0.7, 0.45);
+    f.phy = cc::vecp(1.7, 210.0, -55.0, 33.0, 412.0);
+    f.otphy = form_otphy(f.phy);
+    const double rho = f.phy.rho;
+    const cc::vec5 q(rho, rho * f.phy.u, rho * f.phy.v, rho * f.phy.w,
+                     rho * get_energy(f.phy));
+    const cc::mat5 A = impl::euler_jacobi_n(f);
+    double worst = 0.0;
+    for (int k = 0; k < 5; k++) {
+        cc::vec5 dir;
+        (&dir.c)[k] = 1.0;
+        const double h = 1e-6 * (k == 0 ? q.c : (k == 4 ? q.e : 1.0));
+        const cc::vec5 an = A * dir;
+        const cc::vec5 fd = (1.0 / (2.0 * h)) * (phys_flux_n(f.nor, q + h * dir) -
+                                                 phys_flux_n(f.nor, q - h * dir));
+        const double scale = std::max(1.0, std::max(std::abs(an.e), std::abs(fd.e)));
+        worst = std::max(worst, std::abs(an.e - fd.e) / scale);
+    }
+    check(worst < 1e-6, "euler jacobi matches finite difference of physical flux");
+    std::printf("jacobi: worst relative diff=%.3e\n", worst);
 }
 
 int main() {
@@ -157,6 +192,8 @@ int main() {
 
     std::printf("nodes=%zu faces=%zu cells=%zu bounds=%zu boundary_faces=%d\n", nodes, faces, cells,
                 cc::bounds.size(), boundary);
+    check_euler_jacobi();
+
     std::printf("check: %s\n", failures == 0 ? "PASS" : "FAIL");
     return failures == 0 ? 0 : 1;
 }

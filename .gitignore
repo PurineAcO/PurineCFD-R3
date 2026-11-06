@@ -1,4 +1,7 @@
-out/
+﻿out/
 .vscode/
 .vscode/settings.json
 cases/*/mesh*.txt
+cases/*/field.csv
+cases/*/wall_cp.csv
+cases/*/history.csv

@@ -13,6 +13,8 @@
 
 // 读取非结构网格
 bool readmesh(const char* meshpath);
+// 建立面与单元的邻接关系
+bool linkmesh();
 // 返回一个标识
 void typetoken(char* a,char* b);
 
@@ -79,6 +81,21 @@ inline bool readmesh(const char* meshpath){
     fgets(buf, sizeof(buf), meshfp);  // eaten (all end)
     printf("%s if you see this token,read mesh is over!\n",buf);
     fclose(meshfp);
+    return linkmesh();
+}
+
+inline bool linkmesh(){
+    cc::WallFaces.clear();
+    cc::FarFaces.clear();
+    for(cc::face_class& face : cc::FaceList){
+        if(face.type == cc::WALL) {cc::WallFaces.push_back(&face);}
+        if(face.type == cc::FAR) {cc::FarFaces.push_back(&face);}
+    }
+    if(cc::WallFaces.empty() || cc::FarFaces.empty()){
+        printf("Error: mesh needs nonempty wall and farfield boundaries\n");
+        return false;
+    }
+    printf("Boundaries: wall=%zu farfield=%zu\n",cc::WallFaces.size(),cc::FarFaces.size());
     return true;
 }
 

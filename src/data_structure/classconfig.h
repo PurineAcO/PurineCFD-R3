@@ -1,0 +1,39 @@
+#pragma once
+#include <string>
+#include <vector>
+
+#include "vectors.h"
+
+#define allface(cell) for (int i = 0; i < (cell).fcnt; i++)
+#define allcell for (int i = 0; i < cc::cell_num; i++)
+#define icell(i) cc::CellList[i]
+#define allfac for (int i = 0; i < cc::face_num; i++)
+#define iface(i) cc::FaceList[i]
+
+// 头
+namespace cc {
+
+struct cell_class; // 网格
+struct face_class; // 面
+struct node_class; // 节点
+struct bound {
+    std::string name;             // 名称
+    short type = INTER;           // 类型
+    std::vector<face_class*> fs;  // 面
+    bound() = default;
+    bound(std::string name_,short type_);
+};
+inline bound::bound(std::string name_,short type_):name(name_),type(type_) {}
+
+inline std::vector<node_class> NodeList;   // 节点
+inline std::vector<cell_class> CellList;   // 网格
+inline std::vector<face_class> FaceList;   // 面
+inline std::vector<bound> bounds; // 边界
+
+// 对于边界面找到内部网格
+cell_class* boundary_findcell(face_class* face);
+// 找到邻接网格
+cell_class* othercell(cc::cell_class* c,cc::face_class* f);
+
+}
+
