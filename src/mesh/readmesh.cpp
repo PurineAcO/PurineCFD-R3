@@ -1,24 +1,12 @@
-#pragma once
-
-#include "classconfig.hpp"
-#include "config.hpp"
+#include "readmesh.h"
+#include "../data_structure/classconfig.h"
+#include "../data_structure/node_class.h"
+#include "../data_structure/cell_class.h"
+#include "../data_structure/face_class.h"
 #include <cstdio>
-#include <cstring>
-#include <stdio.h>
-#include <string>
 
-/*
-在设计初期,我们会在所有文件中硬编码六面体棱柱层网格,在以后会逐步修改
-*/
 
-// 读取非结构网格
-bool readmesh(const char* meshpath);
-// 建立面与单元的邻接关系
-bool linkmesh();
-// 返回一个标识
-void typetoken(char* a,char* b);
-
-inline bool readmesh(const char* meshpath){
+bool readmesh(const char *meshpath){
     printf("the path of mesh: %s\n", meshpath);
     FILE* meshfp; 
     int err = fopen_s(&meshfp, meshpath, "r");
@@ -71,10 +59,6 @@ inline bool readmesh(const char* meshpath){
         int index,f1,f2,f3,f4,f5,f6,fcnt;
         fcnt = fscanf_s(meshfp, "%d%d%d%d%d%d%d", &index,&f1,&f2,&f3,&f4,&f5,&f6) - 1;
         cc::CellList[i] = cc::cell_class(index,f1,f2,f3,f4,f5,f6,fcnt);
-        for(int k=0;k<fcnt;k++){
-            cc::face_class* fk = cc::CellList[i].faces[k];
-            cc::CellList[i].nei[k] = (fk->nei[0] == &cc::CellList[i]) ? fk->nei[1] : fk->nei[0];
-        }
     }
     fgets(buf, sizeof(buf), meshfp);  // eaten \n
     fgets(buf, sizeof(buf), meshfp);  // eaten (end)
@@ -82,28 +66,4 @@ inline bool readmesh(const char* meshpath){
     printf("%s if you see this token,read mesh is over!\n",buf);
     fclose(meshfp);
     return linkmesh();
-}
-
-inline bool linkmesh(){
-    cc::WallFaces.clear();
-    cc::FarFaces.clear();
-    for(cc::face_class& face : cc::FaceList){
-        if(face.type == cc::WALL) {cc::WallFaces.push_back(&face);}
-        if(face.type == cc::FAR) {cc::FarFaces.push_back(&face);}
-    }
-    if(cc::WallFaces.empty() || cc::FarFaces.empty()){
-        printf("Error: mesh needs nonempty wall and farfield boundaries\n");
-        return false;
-    }
-    printf("Boundaries: wall=%zu farfield=%zu\n",cc::WallFaces.size(),cc::FarFaces.size());
-    return true;
-}
-
-inline void typetoken(char *a, char *b){
-    if(strcmp(b,"WALL") == 0){cc::bounds.emplace_back(std::string(a),cc::WALL);}
-    else if(strcmp(b,"VIL") == 0){cc::bounds.emplace_back(std::string(a),cc::VIL);}
-    else if(strcmp(b,"FAR") == 0){cc::bounds.emplace_back(std::string(a),cc::FAR);}
-    else if(strcmp(b,"SYM") == 0){cc::bounds.emplace_back(std::string(a),cc::SYM);}
-    else if(strcmp(b,"POL") == 0){cc::bounds.emplace_back(std::string(a),cc::POL);}
-    else if(strcmp(b,"INTER") == 0){cc::bounds.emplace_back(std::string(a),cc::INTER);}
 }

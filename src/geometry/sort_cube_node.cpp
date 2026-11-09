@@ -5,7 +5,7 @@
 为了方便计算多面体的体积,必须将各个点进行排序,使之满足某种关系
 */
 
-inline std::vector<cc::node_class*> sort_cube_node(cc::cell_class &c){
+std::vector<cc::node_class*> sort_cube_node(cc::cell_class &c){
     const cc::face_class* bottom = c.faces[0];
     const cc::face_class* top = c.faces[1];
     int shift = 0, flip = 0;

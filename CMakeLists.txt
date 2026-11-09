@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.20)
 project(PurineCFD-R3 VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(PURINE_WERROR "Treat warnings as errors" ON)
 option(PURINE_NATIVE "Optimize for the build machine" OFF)
@@ -26,7 +29,6 @@ endif()
 
 function(purine_add_executable name)
   add_executable(${name} ${ARGN})
-  target_compile_features(${name} PRIVATE cxx_std_17)
   target_compile_options(${name} PRIVATE ${PURINE_WARNINGS} ${PURINE_OPENMP})
   if(NOT MSVC)
     target_link_options(${name} PRIVATE -fopenmp)
@@ -44,15 +46,13 @@ function(purine_add_executable name)
   endif()
 endfunction()
 
-purine_add_executable(PurineCFD-R3 src/main.cpp
-  src/physic.hpp
-  src/grad.hpp
-  src/readmesh.hpp
-  src/initialize.hpp)
+file(GLOB_RECURSE PURINE_CORE CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.cpp")
 
-include(CTest)
+purine_add_executable(PurineCFD-R3 src/main.cpp ${PURINE_CORE})
 
-if(BUILD_TESTING)
-  purine_add_executable(check tests/check.cpp tests/headers.cpp)
-  add_test(NAME check COMMAND check WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/purine_api.cpp")
+  add_library(purine_geom SHARED tests/purine_api.cpp ${PURINE_CORE})
+  target_compile_features(purine_geom PRIVATE cxx_std_17)
+  target_compile_options(purine_geom PRIVATE ${PURINE_WARNINGS} ${PURINE_OPENMP})
+  target_include_directories(purine_geom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 endif()

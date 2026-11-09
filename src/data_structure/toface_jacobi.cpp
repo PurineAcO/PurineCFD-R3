@@ -1,4 +1,6 @@
+#include "node_class.h"
 #include "face_class.h"
+#include "cell_class.h"
 
 /*
 multiply the vector or physics by jacobi matrix

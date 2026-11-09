@@ -1,6 +1,6 @@
 #include "geometry.h"
 
-inline std::pair<double, cc::vec3> cube_volumn_cen(cc::cell_class& c){
+std::pair<double, cc::vec3> cube_volumn_cen(cc::cell_class& c){
     const std::vector<cc::node_class*> nd = sort_cube_node(c);
     static constexpr short ndi[6] = {1, 2, 3, 7, 4, 5};
     double vol = 0.0; cc::vec3 cen = {};
