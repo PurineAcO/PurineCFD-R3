@@ -48,11 +48,16 @@ endfunction()
 
 file(GLOB_RECURSE PURINE_CORE CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.cpp")
 
-purine_add_executable(PurineCFD-R3 src/main.cpp ${PURINE_CORE})
+purine_add_executable(PurineCFD-R3 src/main.cpp ${PURINE_CORE}
+  src/initialize/initialization.h
+  src/initialize/from_boundary_to_phy.cpp)
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/purine_api.cpp")
-  add_library(purine_geom SHARED tests/purine_api.cpp ${PURINE_CORE})
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/debug/purine_api.cpp")
+  add_library(purine_geom SHARED debug/purine_api.cpp ${PURINE_CORE})
   target_compile_features(purine_geom PRIVATE cxx_std_17)
   target_compile_options(purine_geom PRIVATE ${PURINE_WARNINGS} ${PURINE_OPENMP})
   target_include_directories(purine_geom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+  if(NOT MSVC)
+    target_link_options(purine_geom PRIVATE -fopenmp)
+  endif()
 endif()

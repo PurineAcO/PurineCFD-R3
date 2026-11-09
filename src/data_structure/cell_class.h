@@ -15,7 +15,7 @@ struct cell_class {
     double localdt = 0.0;                      // 当地时间步长
 
     vecp phy;                                   // 物理量
-    struct otphy* otphy;                         // 引申物理量
+    struct otphy* otphy = nullptr;               // 引申物理量
     vec5 conser;                                // 守恒量
     vec5 conserformer;                          // 前期守恒量
     vec5 lastconser;                            // 上一时间步守恒量
@@ -28,7 +28,7 @@ struct cell_class {
         ROE::dissipation diss;     // 耗散项
     #endif
     #if SAchosen
-        SA::turbulence* tur;       // 湍流
+        SA::turbulence* tur = nullptr;   // 湍流
     #elif SSTchosen
         SST::turbulence* tur;      // 湍流
     #endif 

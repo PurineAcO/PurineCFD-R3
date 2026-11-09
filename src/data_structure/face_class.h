@@ -16,15 +16,15 @@ struct face_class {
     cell_class* nei[2] = {};      // 面邻接网格指针
     vecp phy;                     // 物理量
     vecgrad phgrad;               // 面法向梯度
-    struct otphy* otphy;           // 引申物理量
+    struct otphy* otphy = nullptr; // 引申物理量
     double un = 0.0;              // 面法向速度
     #if SAchosen
-        SA::turbulence* tur;       // 湍流
+        SA::turbulence* tur = nullptr;   // 湍流
     #elif SSTchosen
         SST::turbulence* tur;      // 湍流
     #endif
     vecp phynei[2];               // 左右插值物理量
-    struct otphy* otnei[2];        // 左右引申物理量
+    struct otphy* otnei[2] = {};   // 左右引申物理量
     vec5 convect;                 // 无粘通量
     vec5 visflux;                 // 黏性通量
 
