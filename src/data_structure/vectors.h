@@ -206,42 +206,7 @@ struct dissipation;
 
 // LSCB的预留声明
 namespace cc {
-struct LSCBmatrix {
-    double Axx = 0.0;    // 对角xx
-    double Axy = 0.0;    // 上三角xy
-    double Axz = 0.0;    // 上三角xz
-    double Ayy = 0.0;    // 对角yy
-    double Ayz = 0.0;    // 上三角yz
-    double Azz = 0.0;    // 对角zz
-    double wi[6] = {};   // 范数权
-    double invA[3][3] = {};   // 几何逆
-    // 清空
-    void clear();
-    // 形成几何逆
-    void form_invA();
-    // 解梯度方程
-    vec3 solve(vec3 dphi);
-};
-
-inline void LSCBmatrix::clear(){Axx = Ayy = Azz = Axy = Axz = Ayz = 0.0; }
-
-inline vec3 LSCBmatrix::solve(vec3 dphi){
-    return cc::vec3(invA[0][0]*dphi.x + invA[0][1]*dphi.y + invA[0][2]*dphi.z,
-                    invA[1][0]*dphi.x + invA[1][1]*dphi.y + invA[1][2]*dphi.z,
-                    invA[2][0]*dphi.x + invA[2][1]*dphi.y + invA[2][2]*dphi.z);
-}
-
-inline void LSCBmatrix::form_invA(){
-    invA[0][0] = Ayy*Azz - Ayz*Ayz;
-    invA[1][1] = Axx*Azz - Axz*Axz;
-    invA[2][2] = Axx*Ayy - Axy*Axy;
-    invA[0][1] = invA[1][0] = Axz*Ayz - Axy*Azz;
-    invA[0][2] = invA[2][0] = Axy*Ayz - Axz*Ayy;
-    invA[1][2] = invA[2][1] = Axy*Axz - Ayz*Axx;
-    const double det = Axx*invA[0][0] + Axy*invA[0][1] + Axz*invA[0][2];
-    for(int r=0;r<3;r++)
-        for(int s=0;s<3;s++) invA[r][s] /= det;
-}
+struct LSCBmatrix;
 }
 
 // 流场边界条件
@@ -255,37 +220,14 @@ struct FARconfig{
 };
 }
 
-// 设置区域
-namespace cc {
 // 支持的边界条件
+namespace cc {
 inline constexpr short FAR = 0;
 inline constexpr short VIL = 1;
 inline constexpr short POL = 2;
 inline constexpr short INTER = 3;
 inline constexpr short SYM = 4;
 inline constexpr short WALL = 5;
-// 湍流模型开关
-#define SSTchosen 0
-#define SAchosen 1
-// 耗散开关
-#define ROEchosen 0
-#define JSTchosen 1
-// URANS选项
-#define URANS 1;
-// 统计量
-inline int cell_num = 0;  // 网格数目
-inline int face_num = 0;  // 面数目
-inline int node_num = 0;  // 节点数目
-inline int type_num = 0;  // 边界类型数目
-// 无粘通量格式
-inline char scheme = 'R';
-// 是否瞬态
-inline bool urans = false;
-// OpenMP线程数, 0表示自动选择
-inline int threads = 0;
-// 边界条件
-inline boundary_settings::FARconfig FAR_config = {22.9,0.2,300,0.0,3.0};
-
 }
 
 // 伪时间步参数

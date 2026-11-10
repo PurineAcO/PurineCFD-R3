@@ -1,9 +1,12 @@
 #pragma once
 
-#include "classconfig.hpp"
-#include "config.hpp"
+#include "data_structure/cell_class.h"
+#include "data_structure/face_class.h"
+#include "physic/physic.h"
 #include "dissipation.hpp"
-#include "physic.hpp"
+#include "udf/udf.h"
+#include <algorithm>
+#include <cmath>
 
 // Roe波的分解量
 struct roe_waves {
@@ -24,8 +27,8 @@ roe_waves roe_decompose(const cc::face_class& face);
 
 inline void convect_JST(cc::face_class& face){
     const double rho = face.phy.rho, u = face.phy.u, v = face.phy.v, w = face.phy.w;
-    const double H = cc::Cp*face.phy.T + 0.5*(u*u + v*v + w*w);
-    const double p = face.otphy.p;
+    const double H = ph::Cp*face.phy.T + 0.5*(u*u + v*v + w*w);
+    const double p = face.otphy->p;
     const cc::vec5 F(rho*u, rho*u*u + p, rho*u*v, rho*u*w, rho*u*H);
     const cc::vec5 G(rho*v, rho*u*v, rho*v*v + p, rho*v*w, rho*v*H);
     const cc::vec5 K(rho*w, rho*u*w, rho*v*w, rho*w*w + p, rho*w*H);
@@ -37,9 +40,9 @@ inline void assemble_flux(cc::cell_class& cell, char fluxtype){
     cell.convect.clear();
     for(int i=0;i<cell.fcnt;i++){
         cc::face_class* face = cell.faces[i];
-        const double s = 2*cell.fnorm[i] - 1;
-        if(fluxtype == 'J') {cell.convect += s*face->convect;}
-        if(fluxtype == 'R') {
+        if(fluxtype == 'J') {
+            cell.convect += (2*cell.fnorm[i] - 1)*face->convect;
+        }else{
             const bool islow = (face->nei[0] == &cell);
             cell.convect += (2*islow - 1)*face->convect;
         }
@@ -49,20 +52,23 @@ inline void assemble_flux(cc::cell_class& cell, char fluxtype){
 inline roe_waves roe_decompose(const cc::face_class& face){
     const cc::vecp& L = face.phynei[0];
     const cc::vecp& R = face.phynei[1];
-    const cc::otphy& Lo = face.otnei[0];
-    const cc::otphy& Ro = face.otnei[1];
+    const cc::otphy& Lo = *face.otnei[0];
+    const cc::otphy& Ro = *face.otnei[1];
     roe_waves w;
-    w.n = (1.0/face.nor.norm())*face.nor;
-    const double sl = std::sqrt(L.rho), sr = std::sqrt(R.rho);
+    const double len0 = face.nor.norm();
+    const double sgn = face.nei[0] != nullptr
+        ? (cc::dot(face.nor, face.mid - face.nei[0]->center) > 0.0 ? 1.0 : -1.0)
+        : (cc::dot(face.nor, face.nei[1]->center - face.mid) > 0.0 ? 1.0 : -1.0);
+    w.n = (sgn/len0)*face.nor;    const double sl = std::sqrt(L.rho), sr = std::sqrt(R.rho);
     const double den = sl + sr;
-    const double Hl = cc::Cp*L.T + 0.5*(L.u*L.u + L.v*L.v + L.w*L.w);
-    const double Hr = cc::Cp*R.T + 0.5*(R.u*R.u + R.v*R.v + R.w*R.w);
+    const double Hl = ph::Cp*L.T + 0.5*(L.u*L.u + L.v*L.v + L.w*L.w);
+    const double Hr = ph::Cp*R.T + 0.5*(R.u*R.u + R.v*R.v + R.w*R.w);
     const double rhob = sl*sr;
     const cc::vec3 vl{L.u,L.v,L.w}, vr{R.u,R.v,R.w};
     const cc::vec3 vb = (1.0/den)*(sl*vl + sr*vr);
     const double Hb = (sl*Hl + sr*Hr)/den;
     const double qb2 = cc::dot(vb, vb);
-    const double ab = std::sqrt((cc::gamma - 1.0)*(Hb - 0.5*qb2));
+    const double ab = std::sqrt((ph::gamma - 1.0)*(Hb - 0.5*qb2));
     const double unb = cc::dot(vb, w.n);
     cc::vec3 t1 = vb - unb*w.n;
     if(t1.norm() > 1e-300){
@@ -97,8 +103,8 @@ inline roe_waves roe_decompose(const cc::face_class& face){
 inline void convect_ROE(cc::face_class& face){
     const cc::vecp& L = face.phynei[0];
     const cc::vecp& R = face.phynei[1];
-    const cc::otphy& Lo = face.otnei[0];
-    const cc::otphy& Ro = face.otnei[1];
+    const cc::otphy& Lo = *face.otnei[0];
+    const cc::otphy& Ro = *face.otnei[1];
     const roe_waves w = roe_decompose(face);
     const cc::vec3& n = w.n;
     const double unl = cc::dot(cc::vec3{L.u,L.v,L.w}, n);

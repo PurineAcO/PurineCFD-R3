@@ -1,5 +1,6 @@
 #pragma once
 #include "classconfig.h"
+#include <cstddef>
 
 
 namespace cc {
@@ -19,9 +20,9 @@ struct face_class {
     struct otphy* otphy = nullptr; // 引申物理量
     double un = 0.0;              // 面法向速度
     #if SAchosen
-        SA::turbulence* tur = nullptr;   // 湍流
+        SA::turbulence* tur = NULL;   // 湍流
     #elif SSTchosen
-        SST::turbulence* tur;      // 湍流
+        SST::turbulence* tur = NULL;  // 湍流
     #endif
     vecp phynei[2];               // 左右插值物理量
     struct otphy* otnei[2] = {};   // 左右引申物理量

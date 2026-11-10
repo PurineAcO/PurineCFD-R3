@@ -10,6 +10,9 @@ option(PURINE_WERROR "Treat warnings as errors" ON)
 option(PURINE_NATIVE "Optimize for the build machine" OFF)
 option(PURINE_SANITIZE "Enable AddressSanitizer and UBSan" OFF)
 
+set(PURINE_DATA_DIR "C:/Users/Administrator/Desktop/PurineCFD-Plugin/data"
+    CACHE PATH "Root directory for solver output cases (3D-<n>-<tag>)")
+
 if(MSVC)
   set(PURINE_WARNINGS /W4 /utf-8 /permissive- /wd4100)
   set(PURINE_OPENMP /openmp)
@@ -34,6 +37,7 @@ function(purine_add_executable name)
     target_link_options(${name} PRIVATE -fopenmp)
   endif()
   target_include_directories(${name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+  target_compile_definitions(${name} PRIVATE PURINE_DATA_DIR="${PURINE_DATA_DIR}")
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
     target_include_directories(${name} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
   endif()
@@ -50,7 +54,8 @@ file(GLOB_RECURSE PURINE_CORE CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src
 
 purine_add_executable(PurineCFD-R3 src/main.cpp ${PURINE_CORE}
   src/initialize/initialization.h
-  src/initialize/from_boundary_to_phy.cpp)
+  src/initialize/from_boundary_to_phy.cpp
+  src/udf/udf.h)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/debug/purine_api.cpp")
   add_library(purine_geom SHARED debug/purine_api.cpp ${PURINE_CORE})

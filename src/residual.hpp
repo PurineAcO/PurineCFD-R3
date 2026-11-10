@@ -1,7 +1,7 @@
 #pragma once
 
-#include "classconfig.hpp"
-#include "config.hpp"
+#include "data_structure/cell_class.h"
+#include "data_structure/classconfig.h"
 #include <algorithm>
 #include <cmath>
 
@@ -37,14 +37,13 @@ inline void calculate_residual(){
 }
 
 inline double residual_drop(){
-    double ref = 0.0;
-    for(int k = 0; k < 5; k++) ref = std::max(ref, res::norm0[k]);
-    double worst = 0.0;
+    double cur2 = 0.0, ref2 = 0.0;
     for(int k = 0; k < 5; k++){
-        if(res::norm0[k] <= 1e-8*ref) {continue;}
-        worst = std::max(worst, res::current[k]/res::norm0[k]);
+        cur2 += res::current[k]*res::current[k];
+        ref2 += res::norm0[k]*res::norm0[k];
     }
-    return worst;
+    if(ref2 <= 0.0) {return 0.0;}
+    return std::sqrt(cur2/ref2);
 }
 
 inline void report_residual(int step, double cl, double cd, double elapsed){

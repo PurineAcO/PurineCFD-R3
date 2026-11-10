@@ -22,17 +22,22 @@ struct cell_class {
     vec5 convect;                               // 无粘对流项
     vec5 visflux;                               // 黏性通量
     vecgrad phgrad;                             // 物理量梯度
+
     #if JSTchosen
         JST::dissipation diss;     // 耗散项
     #elif ROEchosen
         ROE::dissipation diss;     // 耗散项
     #endif
+
     #if SAchosen
-        SA::turbulence* tur = nullptr;   // 湍流
+        SA::turbulence* tur = NULL;   // 湍流
     #elif SSTchosen
-        SST::turbulence* tur;      // 湍流
+        SST::turbulence* tur = NULL;  // 湍流
     #endif 
-    LSCBmatrix LSCB;      // LSCB梯度预处理矩阵
+
+    #if LSCBchosen
+        struct LSCBmatrix* LSCB = NULL; // LSCB梯度预处理矩阵
+    #endif
     mat5 diag;            // 隐式对角块
 
     // 由守恒量还原基本物理量

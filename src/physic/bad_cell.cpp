@@ -1,7 +1,7 @@
 #include "physic.h"
 #include <cstdio>
 
-int bad_cells() {
+int ph::bad_cells() {
     int nbad = 0;
     for (const cc::cell_class& c : cc::CellList) {
         const double ke = 0.5 * (c.conser.x * c.conser.x + c.conser.y * c.conser.y +
