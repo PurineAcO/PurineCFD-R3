@@ -1,4 +1,5 @@
 #include "geometry.h"
+#include "boundary/NoSlipWall.h"
 
 /*
 the distance from cell to wall is needed if you use turbulence model

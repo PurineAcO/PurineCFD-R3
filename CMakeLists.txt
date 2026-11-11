@@ -55,10 +55,16 @@ file(GLOB_RECURSE PURINE_CORE CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src
 purine_add_executable(PurineCFD-R3 src/main.cpp ${PURINE_CORE}
   src/initialize/initialization.h
   src/initialize/from_boundary_to_phy.cpp
-  src/udf/udf.h)
+  src/udf/udf.h
+  src/boundary/NoSlipWall.h
+  src/interpolate/interpolate.h
+  src/solver/LUSGS.h
+  src/DensityBased/implict.h)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/debug/purine_api.cpp")
-  add_library(purine_geom SHARED debug/purine_api.cpp ${PURINE_CORE})
+  add_library(purine_geom SHARED debug/purine_api.cpp ${PURINE_CORE}
+    src/euler/Roedissi.cpp
+    src/boundary/FAR.h)
   target_compile_features(purine_geom PRIVATE cxx_std_17)
   target_compile_options(purine_geom PRIVATE ${PURINE_WARNINGS} ${PURINE_OPENMP})
   target_include_directories(purine_geom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")

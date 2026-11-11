@@ -21,6 +21,7 @@ inline vec3 operator+(vec3 a, const vec3& b) {return a += b;}
 inline vec3 operator-(vec3 a, const vec3& b) {return a -= b;}
 inline vec3 operator*(vec3 a, double s) {return a *= s;}
 inline vec3 operator*(double s, vec3 a) {return a *= s;}
+inline vec3 unit(const vec3& a) {return (1.0/a.norm())*a;}
 inline double dot(const vec3& a, const vec3& b) {return a.x * b.x + a.y * b.y + a.z * b.z;}
 inline vec3 cross(const vec3& a, const vec3& b) {return vec3{a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x};}
 inline double vec3::norm() const {return std::sqrt(x * x + y * y + z * z);}
@@ -33,6 +34,10 @@ struct vecp {
     vecp& operator+=(const vecp& o) {rho += o.rho;u += o.u;v += o.v;w += o.w;T += o.T;return *this;}
     vecp& operator-=(const vecp& o) {rho -= o.rho;u -= o.u;v -= o.v;w -= o.w;T -= o.T;return *this;}
     vecp& operator*=(double k) {rho *= k;u *= k;v *= k;w *= k;T *= k;return *this;}
+    double& operator[](int i) {return (&rho)[i];}
+    double operator[](int i) const {return (&rho)[i];}
+    vec3 vel() const {return vec3{u, v, w};}
+    void setvel(const vec3& q) {u = q.x;v = q.y;w = q.z;}
     void clear();
 };
 
@@ -50,6 +55,8 @@ struct vec5 {
     vec5& operator+=(const vec5& o) {c += o.c;x += o.x;y += o.y;z += o.z;e += o.e;return *this;}
     vec5& operator-=(const vec5& o) {c -= o.c;x -= o.x;y -= o.y;z -= o.z;e -= o.e;return *this;}
     vec5& operator*=(double k) {c *= k;x *= k; y *= k;z *= k;e *= k;return *this;}
+    double& operator[](int i) {return (&c)[i];}
+    double operator[](int i) const {return (&c)[i];}
     void clear();
 };
 
@@ -90,6 +97,8 @@ struct otphy;
 // 五阶方阵
 struct mat5 {
     double a[5][5] = {};
+    mat5() = default;
+    mat5(const vec5& r0, const vec5& r1, const vec5& r2, const vec5& r3, const vec5& r4);
     mat5& operator+=(const mat5& o);
     mat5& operator*=(double k);
     double* operator[](int r);
@@ -97,6 +106,14 @@ struct mat5 {
     void clear();
     bool solve(vec5& b) const;
 };
+
+inline mat5::mat5(const vec5& r0, const vec5& r1, const vec5& r2, const vec5& r3, const vec5& r4){
+    const vec5* r[5] = {&r0, &r1, &r2, &r3, &r4};
+    for(int i = 0; i < 5; i++){
+        a[i][0] = r[i]->c; a[i][1] = r[i]->x; a[i][2] = r[i]->y;
+        a[i][3] = r[i]->z; a[i][4] = r[i]->e;
+    }
+}
 
 // 矩阵加法
 inline mat5 operator+(mat5 m, const mat5& o);
@@ -144,7 +161,7 @@ inline bool mat5::solve(vec5& b) const {
                 m[p][j] = t;
             }
         }
-        if (m[k][k] == 0.0) return false;
+        if (std::abs(m[k][k]) < 1e-14) m[k][k] = m[k][k] >= 0.0 ? 1e-14 : -1e-14;
         for (int i = k + 1; i < 5; i++) {
             const double f = m[i][k] / m[k][k];
             for (int j = k; j < 6; j++) m[i][j] -= f * m[k][j];
@@ -164,6 +181,12 @@ inline const double* mat5::operator[](int r) const { return a[r]; }
 
 inline mat5 operator+(mat5 m, const mat5& o) { return m += o; }inline mat5 operator*(mat5 m, double k) { return m *= k; }
 
+inline mat5 operator-(mat5 m, const mat5& o) {
+    for(int r = 0; r < 5; r++)
+        for(int c = 0; c < 5; c++) m.a[r][c] -= o.a[r][c];
+    return m;
+}
+
 inline mat5 operator*(double k, mat5 m) { return m *= k; }
 
 inline vec5 operator*(const mat5& m, const vec5& v) {
@@ -174,7 +197,17 @@ inline vec5 operator*(const mat5& m, const vec5& v) {
                 m.a[4][0] * v.c + m.a[4][1] * v.x + m.a[4][2] * v.y + m.a[4][3] * v.z + m.a[4][4] * v.e);
 }
 
-} 
+// 单位阵
+inline mat5 eyes = []{ mat5 I; for(int r = 0; r < 5; r++) I.a[r][r] = 1.0; return I; }();
+
+// 三向无粘通量Jacobi
+struct mat5tri {
+    mat5 x, y, z;
+    mat5tri() = default;
+    mat5tri(mat5 x_, mat5 y_, mat5 z_) : x(x_), y(y_), z(z_) {}
+};
+
+}
 
 // SA
 namespace SA{
@@ -222,12 +255,9 @@ struct FARconfig{
 
 // 支持的边界条件
 namespace cc {
-inline constexpr short FAR = 0;
 inline constexpr short VIL = 1;
 inline constexpr short POL = 2;
 inline constexpr short INTER = 3;
-inline constexpr short SYM = 4;
-inline constexpr short WALL = 5;
 }
 
 // 伪时间步参数

@@ -1,10 +1,9 @@
 #include "../data_structure/cell_class.h"
 #include "../data_structure/face_class.h"
-#include "../physic/physic.h"
 #include "data_structure/classconfig.h"
-#include "data_structure/face_class.h"
 #include "data_structure/vectors.h"
 #include "turbulence/SA.h"
+#include "../physic/physic.h"
 #include "grad/LSCB.h"
 
 /*

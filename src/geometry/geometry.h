@@ -28,5 +28,9 @@ void cell_face_norm_direction(cc::cell_class& c);
 double distance_to_wall(const cc::cell_class& c);
 // LSCB预备
 void LSCB_pre_process(cc::cell_class& c);
+// 法向量方向校正
+double outward_unit_nor(cc::face_class *f, const cc::cell_class *c);
 // 几何预处理总流程
 void geometry_main();
+// 形成一个三维正交基
+void tangent_basis(const cc::vec3& n, cc::vec3& t1, cc::vec3& t2);

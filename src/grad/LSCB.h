@@ -34,15 +34,12 @@ inline void LSCBmatrix::clear(){Axx = Ayy = Azz = Axy = Axz = Ayz = 0.0; }
 void least_square_cell_based(cc::cell_class& cell);
 // 湍流变量的LSCB
 void LSCB_turbulence(cc::cell_class& cell);
+// 面上退化梯度
+void grad_onface(cc::cell_class& cell);
 
-// #pragma once
-
-// #include "classconfig.hpp"
-// #include <cmath>
 
 // // GGCB梯度
 // void green_gauss_cell_based(cc::cell_class& cell);
-
 
 // inline void green_gauss_cell_based(cc::cell_class& cell){
 //     cell.phgrad.clear();

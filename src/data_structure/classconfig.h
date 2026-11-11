@@ -25,10 +25,10 @@ struct bound {
 };
 inline bound::bound(std::string name_,short type_):name(name_),type(type_) {}
 
-inline std::vector<node_class> NodeList;   // 节点
-inline std::vector<cell_class> CellList;   // 网格
-inline std::vector<face_class> FaceList;   // 面
-inline std::vector<bound> bounds; // 边界
+extern std::vector<node_class> NodeList;   // 节点
+extern std::vector<cell_class> CellList;   // 网格
+extern std::vector<face_class> FaceList;   // 面
+extern std::vector<bound> bounds;          // 边界
 
 inline int cell_num = 0;  // 网格数目
 inline int face_num = 0;  // 面数目

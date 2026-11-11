@@ -2,6 +2,12 @@
 #include "../data_structure/cell_class.h"
 #include "../data_structure/face_class.h"
 #include "../data_structure/node_class.h"
+#include "boundary/FAR.h"
+#include "boundary/SYM.h"
+#include "boundary/NoSlipWall.h"
+// #include "../data_structure/cell_class.h"
+// #include "../data_structure/face_class.h"
+// #include "../data_structure/node_class.h"
 #include <cstring>
 
 void typetoken(char *a, char *b){

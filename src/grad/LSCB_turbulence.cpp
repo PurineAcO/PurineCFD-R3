@@ -1,5 +1,5 @@
-#include "LSCB.h"
 #include "data_structure/classconfig.h"
+#include "LSCB.h"
 #include "turbulence/SA.h"
 
 void LSCB_turbulence(cc::cell_class &cell){
