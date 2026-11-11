@@ -7,68 +7,23 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(PURINE_WERROR "Treat warnings as errors" ON)
-option(PURINE_NATIVE "Optimize for the build machine" OFF)
-option(PURINE_SANITIZE "Enable AddressSanitizer and UBSan" OFF)
 
+# 算例输出根目录, 程序在此下按 3D-<n>-<tag> 自动编号
 set(PURINE_DATA_DIR "C:/Users/Administrator/Desktop/PurineCFD-Plugin/data"
-    CACHE PATH "Root directory for solver output cases (3D-<n>-<tag>)")
+    CACHE PATH "Root directory for solver output cases")
 
-if(MSVC)
-  set(PURINE_WARNINGS /W4 /utf-8 /permissive- /wd4100)
-  set(PURINE_OPENMP /openmp)
-  if(PURINE_WERROR)
-    list(APPEND PURINE_WARNINGS /WX)
-  endif()
-else()
-  set(PURINE_WARNINGS
-      -Wall -Wextra -Wpedantic
-      -Wno-unused-parameter -Wno-unused-variable
-      -fno-math-errno)
-  set(PURINE_OPENMP -fopenmp)
-  if(PURINE_WERROR)
-    list(APPEND PURINE_WARNINGS -Werror)
-  endif()
+set(PURINE_WARNINGS
+    -Wall -Wextra -Wpedantic
+    -Wno-unused-parameter -Wno-unused-variable
+    -fno-math-errno)
+if(PURINE_WERROR)
+  list(APPEND PURINE_WARNINGS -Werror)
 endif()
 
-function(purine_add_executable name)
-  add_executable(${name} ${ARGN})
-  target_compile_options(${name} PRIVATE ${PURINE_WARNINGS} ${PURINE_OPENMP})
-  if(NOT MSVC)
-    target_link_options(${name} PRIVATE -fopenmp)
-  endif()
-  target_include_directories(${name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-  target_compile_definitions(${name} PRIVATE PURINE_DATA_DIR="${PURINE_DATA_DIR}")
-  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
-    target_include_directories(${name} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
-  endif()
-  if(PURINE_NATIVE AND NOT MSVC)
-    target_compile_options(${name} PRIVATE -march=native)
-  endif()
-  if(PURINE_SANITIZE AND NOT MSVC)
-    target_compile_options(${name} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(${name} PRIVATE -fsanitize=address,undefined)
-  endif()
-endfunction()
+file(GLOB_RECURSE PURINE_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.cpp")
 
-file(GLOB_RECURSE PURINE_CORE CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.cpp")
-
-purine_add_executable(PurineCFD-R3 src/main.cpp ${PURINE_CORE}
-  src/initialize/initialization.h
-  src/initialize/from_boundary_to_phy.cpp
-  src/udf/udf.h
-  src/boundary/NoSlipWall.h
-  src/interpolate/interpolate.h
-  src/solver/LUSGS.h
-  src/DensityBased/implict.h)
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/debug/purine_api.cpp")
-  add_library(purine_geom SHARED debug/purine_api.cpp ${PURINE_CORE}
-    src/euler/Roedissi.cpp
-    src/boundary/FAR.h)
-  target_compile_features(purine_geom PRIVATE cxx_std_17)
-  target_compile_options(purine_geom PRIVATE ${PURINE_WARNINGS} ${PURINE_OPENMP})
-  target_include_directories(purine_geom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-  if(NOT MSVC)
-    target_link_options(purine_geom PRIVATE -fopenmp)
-  endif()
-endif()
+add_executable(PurineCFD-R3 src/main.cpp ${PURINE_SRC})
+target_compile_options(PurineCFD-R3 PRIVATE ${PURINE_WARNINGS} -fopenmp)
+target_include_directories(PurineCFD-R3 PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_definitions(PurineCFD-R3 PRIVATE PURINE_DATA_DIR="${PURINE_DATA_DIR}")
+target_link_options(PurineCFD-R3 PRIVATE -fopenmp)
