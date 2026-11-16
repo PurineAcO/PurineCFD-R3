@@ -21,6 +21,7 @@ double impl::flow_step(double dt, double cfl){
         dQ[i].clear();
         res += rhs[i].c*rhs[i].c;
     }
+
     for(int sw = 0; sw < solver::sweeps; sw++){Qcopy(); block_sgs(solvekernel);}
     relax();
     return std::sqrt(res/cc::cell_num);

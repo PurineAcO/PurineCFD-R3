@@ -16,5 +16,10 @@ void LSCB_pre_process(cc::cell_class &c){
         c.LSCB->Azz += c.LSCB->wi[i] * d.z * d.z;
         c.LSCB->Axz += c.LSCB->wi[i] * d.x * d.z;
     }
+#if chose2D
+    c.LSCB->Azz = 1.0;
+    c.LSCB->Ayz = 0.0;
+    c.LSCB->Axz = 0.0;
+#endif
     c.LSCB->form_invA();
 }

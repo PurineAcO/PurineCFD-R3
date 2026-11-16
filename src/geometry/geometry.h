@@ -14,6 +14,10 @@ double tetrahedron_volumn(cc::vec3 a,cc::vec3 b,cc::vec3 c,cc::vec3 d);
 cc::vec3 tetrahedron_cen(cc::vec3 a,cc::vec3 b,cc::vec3 c,cc::vec3 d);
 // 六面体体积和质心
 std::pair<double, cc::vec3> cube_volumn_cen(cc::cell_class& c);
+#if chose2D
+// 多边形面积和质心
+std::pair<double, cc::vec3> cube_volumn_cen_2D(cc::cell_class& c);
+#endif
 // 六面体顶点排序
 std::vector<cc::node_class*> sort_cube_node(cc::cell_class& c);
 // 面带面积法向

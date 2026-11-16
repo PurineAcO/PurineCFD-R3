@@ -2,7 +2,6 @@
 #include "../data_structure/vectors.h"
 #include "data_structure/cell_class.h"
 #include "data_structure/face_class.h"
-#include <vector>
 
 struct SA::turbulence
 {

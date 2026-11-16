@@ -8,6 +8,10 @@
 
 // 读取非结构网格
 bool readmesh(const char* meshpath);
+#if chose2D
+// 读取二维非结构网格
+bool readmesh_2D(const char* meshpath);
+#endif
 // 建立面与单元的邻接关系
 bool linkmesh();
 // 返回一个标识

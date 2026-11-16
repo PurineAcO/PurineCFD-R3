@@ -4,8 +4,13 @@
 
 void muscl(cc::face_class* face){
     if(face->type == cc::INTER){
+#if chose2D
+        face->phynei[0] = BarthJespersen_2D(face->nei[0], face->mid - face->nei[0]->center);
+        face->phynei[1] = BarthJespersen_2D(face->nei[1], face->mid - face->nei[1]->center);
+#else
         face->phynei[0] = BarthJespersen(face->nei[0], face->mid - face->nei[0]->center);
         face->phynei[1] = BarthJespersen(face->nei[1], face->mid - face->nei[1]->center);
+#endif
     }else{
         face->phynei[0] = face->phy;
         face->phynei[1] = face->phy;

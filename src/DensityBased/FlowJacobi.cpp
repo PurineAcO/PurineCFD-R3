@@ -74,7 +74,12 @@ void impl::form_diag(cc::cell_class& cell, double inv_dt, double cfl){
                                               + f->imats.Tf + (-0.5*s)*f->imats.Bf;}
         else if(f->type == cc::WALL){wall_jacobi(f, &cell, s);}
         else if(f->type == cc::SYM){sym_jacobi(f, &cell, s);}
-        else if(f->type == cc::FAR){far_jacobi(f, &cell, s); far += far_convect_jacobi(f);}
+        else if(f->type == cc::FAR){
+            far_jacobi(f, &cell, s);
+#if !chose2D
+            far += far_convect_jacobi(f);
+#endif
+        }
     }
     cell.diag += far;
 }
