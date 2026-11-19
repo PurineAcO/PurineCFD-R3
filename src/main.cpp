@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cerrno>
 #include <cstdlib>
 #include <filesystem>
 #include <string>
@@ -56,6 +57,31 @@ void add_seed(double amp){
         c.phy.v += wgt*c.center.x;
         *c.otphy = ph::form_otphy(c.phy);
         c.form_conservative();
+    }
+}
+
+std::vector<cc::vec5> snap_q;
+std::vector<double> snap_nu;
+double cfl_scale = 1.0;
+
+// 保存当前流场快照, 供定常迭代发散时回退
+void save_state(){
+    if((int)snap_q.size() != cc::cell_num){
+        snap_q.resize(cc::cell_num);
+        snap_nu.resize(cc::cell_num);
+    }
+    for(int i = 0; i < cc::cell_num; i++){
+        snap_q[i] = cc::CellList[i].conser;
+        snap_nu[i] = cc::CellList[i].tur->miubl;
+    }
+}
+
+// 回退到最近一次快照
+void restore_state(){
+    for(int i = 0; i < cc::cell_num; i++){
+        cc::CellList[i].conser = snap_q[i];
+        cc::CellList[i].tur->miubl = snap_nu[i];
+        cc::CellList[i].prim();
     }
 }
 
@@ -124,10 +150,19 @@ int main(){
     const std::string histpath = outdir + "/history.csv";
     const std::string fieldpath = outdir + "/field.csv";
     const std::string wallpath = outdir + "/wall_cp.csv";
-    fopen_s(&hist, histpath.c_str(), "w");
+    const errno_t herr = fopen_s(&hist, histpath.c_str(), "w");
+    if(hist == nullptr) {
+        std::fprintf(stderr, "无法创建 %s (errno %d)\n", histpath.c_str(), (int)herr);
+        return 1;
+    }
     fprintf(hist, "phase,step,time,inner,res0,res,cl,cd\n");
     FILE* cpmid = nullptr;
-    fopen_s(&cpmid, (outdir + "/wall_cp_mid.csv").c_str(), "w");
+    const errno_t cerr = fopen_s(&cpmid, (outdir + "/wall_cp_mid.csv").c_str(), "w");
+    if(cpmid == nullptr) {
+        std::fprintf(stderr, "无法创建 wall_cp_mid.csv (errno %d)\n", (int)cerr);
+        fclose(hist);
+        return 1;
+    }
     fprintf(cpmid, "step,theta,cp\n");
 
     if(dualtime::seed > 0.0) {
@@ -138,10 +173,27 @@ int main(){
     double cl = 0.0, cd = 0.0;
     int step = 0;
     if(dualtime::dt > 0.0){
-        for(int it = 1; it <= dualtime::steady_iters; it++){
-            const double cfl = std::min(dualtime::steady_cfl, 2.0 + (dualtime::steady_cfl - 2.0)*it/200.0);
-            const double r = impl::flow_step(0.0, cfl);
-            if(!turboff) {SA::turbulence_step(0.0, cfl);}
+        for(int it = 1; it <= dualtime::steady_iters;){
+            const double cfl_nom = std::min(dualtime::steady_cfl, 2.0 + (dualtime::steady_cfl - 2.0)*it/200.0);
+            save_state();
+            const double r = solver::steady_scheme == 0
+                ? impl::flow_step(0.0, cfl_nom*cfl_scale)
+                : impl::flow_step_explicit(0.0);
+            if(!turboff) {
+                if(solver::steady_scheme == 0) {SA::turbulence_step(0.0, cfl_nom*cfl_scale);}
+                else {SA::turbulence_step_explicit(0.0);}
+            }
+            const int nb = ph::bad_cells();
+            if(nb > 0){
+                printf("steady %6d 发散: %d 个坏单元, 回退上一流场, CFL x%.4f -> x%.4f\n",
+                       it, nb, cfl_scale, cfl_scale*0.5);
+                fflush(stdout);
+                restore_state();
+                cfl_scale *= 0.5;
+                if(cfl_scale < 1e-3){printf("CFL 已降到下限仍不收敛, 放弃\n"); return 1;}
+                continue;
+            }
+            if(cfl_scale < 1.0) {cfl_scale = std::min(1.0, cfl_scale*1.05);}
 #pragma omp parallel for schedule(static)
             allcell icell(i).prim();
             if(it % solver::conv_step == 0 || it == dualtime::steady_iters){
@@ -149,10 +201,10 @@ int main(){
                 fprintf(hist, "S,%d,0,1,%.6e,%.6e,%.8f,%.8f\n", it, r, r, cl, cd);
                 fflush(hist);
                 printf("steady %6d  cfl %6.1f  res %.4e  Cl %+.5f  Cd %+.5f  clip %5d  [%.0fs]\n",
-                       it, cfl, r, cl, cd, impl::n_clip, elapsed());
+                       it, cfl_nom*cfl_scale, r, cl, cd, impl::n_clip, elapsed());
                 fflush(stdout);
             }
-            if(ph::bad_cells() > 0) {printf("steady %d diverge\n", it); return 1;}
+            ++it;
         }
         if(dualtime::steady_iters > 0){
 #pragma omp parallel for schedule(static)
@@ -168,9 +220,16 @@ int main(){
             }
             double r0 = 0.0, r = 0.0;
             int k = 0;
+            const double cfl_cap = std::min(cflmax, 10.0);
+            const double cfl_urans = std::min(cfl_cap, 2.0 + (cfl_cap - 2.0)*(step - 1)/200.0);
             while(k < dualtime::inner){
-                r = impl::flow_step(dualtime::dt, cflmax);
-                if(!turboff) {SA::turbulence_step(dualtime::dt, cflmax);}
+                r = solver::inner_scheme == 0
+                    ? impl::flow_step(dualtime::dt, cfl_urans)
+                    : impl::flow_step_explicit(dualtime::dt);
+                if(!turboff) {
+                    if(solver::inner_scheme == 0) {SA::turbulence_step(dualtime::dt, cfl_urans);}
+                    else {SA::turbulence_step_explicit(dualtime::dt);}
+                }
 #pragma omp parallel for schedule(static)
                 allcell icell(i).prim();
                 if(++k == 1) {r0 = r;} else if(r < dualtime::inner_tol*r0) {break;}
@@ -191,7 +250,7 @@ int main(){
                        step, t, k, r0, r, cl, cd, impl::n_clip, numax, elapsed());
                 fflush(stdout);
             }
-            if(step % solver::field_interval == 0){
+            if(step % solver::field_interval == 0 && step >= solver::field_start_step){
 #pragma omp parallel for schedule(static)
                 allcell icell(i).prim();
                 char buf[512];
@@ -200,10 +259,28 @@ int main(){
             }
         }
     }else{
-        for(step = 1; step <= maxstep; step++){
-            const double cfl = std::min(cflmax, 2.0 + (cflmax - 2.0)*step/200.0);
-            const double res_now = impl::flow_step(0.0, cfl);
-            if(!turboff) {SA::turbulence_step(0.0, cfl);}
+        for(int step_it = 1; step_it <= maxstep;){
+            const double cfl_nom = std::min(cflmax, 2.0 + (cflmax - 2.0)*step_it/200.0);
+            save_state();
+            const double res_now = solver::steady_scheme == 0
+                ? impl::flow_step(0.0, cfl_nom*cfl_scale)
+                : impl::flow_step_explicit(0.0);
+            if(!turboff) {
+                if(solver::steady_scheme == 0) {SA::turbulence_step(0.0, cfl_nom*cfl_scale);}
+                else {SA::turbulence_step_explicit(0.0);}
+            }
+            const int nb = ph::bad_cells();
+            if(nb > 0){
+                printf("step %6d 发散: %d 个坏单元, 回退上一流场, CFL x%.4f -> x%.4f\n",
+                       step_it, nb, cfl_scale, cfl_scale*0.5);
+                fflush(stdout);
+                restore_state();
+                cfl_scale *= 0.5;
+                if(cfl_scale < 1e-3){printf("CFL 已降到下限仍不收敛, 放弃\n"); break;}
+                continue;
+            }
+            if(cfl_scale < 1.0) {cfl_scale = std::min(1.0, cfl_scale*1.05);}
+            step = step_it;
 #pragma omp parallel for schedule(static)
             allcell icell(i).prim();
             ph::wall_forces(cl, cd, farphy);
@@ -214,10 +291,10 @@ int main(){
                 double numax = 0.0;
                 for(int i = 0; i < cc::cell_num; i++) {numax = std::max(numax, cc::CellList[i].tur->miubl);}
                 printf("step %6d  cfl %6.1f  res %.4e  Cl %+.5f  Cd %+.5f  clip %5d  miubl_max %.4e  [%.0fs]\n",
-                       step, cfl, res_now, cl, cd, impl::n_clip, numax, elapsed());
+                       step, cfl_nom*cfl_scale, res_now, cl, cd, impl::n_clip, numax, elapsed());
                 fflush(stdout);
             }
-            if(ph::bad_cells() > 0) {printf("step %d diverge\n", step); break;}
+            ++step_it;
         }
     }
     if(step > maxstep) {step = maxstep;}

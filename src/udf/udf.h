@@ -16,7 +16,7 @@ namespace cc {
 inline int threads = 32;
 // 边界条件
 #if chose2D
-inline boundary_settings::FARconfig FAR_config = {22.89061087683341,0.2,300.0,0.0,0.1};
+inline boundary_settings::FARconfig FAR_config = {63585.0302134262,0.72,300.0,4.5,3.0};
 #else
 inline boundary_settings::FARconfig FAR_config = {22.9,0.2,300,0.0,0.1};
 #endif
@@ -26,13 +26,13 @@ inline boundary_settings::FARconfig FAR_config = {22.9,0.2,300,0.0,0.1};
 namespace solver {
 // 网格文件
 #if chose2D
-inline const char* mesh = "cases/cyl2d/mesh.txt";
+inline const char* mesh = "cases/naca0012/mesh.txt";
 #else
 inline const char* mesh = "cases/cyc/mesh.txt";
 #endif
 // 最大步数
 #if chose2D
-inline int max_step = 800;
+inline int max_step = 10000;
 #else
 inline int max_step = 100;
 #endif
@@ -46,15 +46,23 @@ inline double cfl = 50.0;
 inline int turboff = 0;
 // 对称Gauss-Seidel扫描次数
 inline int sweeps = 4;
+// 内迭代格式, 0为隐式LU-SGS, 1为显式伪时间推进
+inline int inner_scheme = 0;
+// 定常预热的内迭代格式, 0为隐式LU-SGS, 1为显式伪时间推进
+inline int steady_scheme = 0;
+// 显式伪时间推进的CFL数
+inline double exp_cfl = 0.3;
 // 残差与屏幕输出间隔
-inline int conv_step = 10;
+inline int conv_step = 20;
 // 流场输出间隔
-inline int field_interval = 100;
+inline int field_interval = 2;
+// 流场输出起始步, 小于该步不输出
+inline int field_start_step = 100000000;
 // 输出目录, 空则由程序按 3D-<n>-<tag> 自动编号
-inline const char* outdir = "";
+inline const char* outdir = "D:/PurineCFD-R3/run/NACA0012-Ma0.72-a4.5-Re1e7";
 // 输出目录标签, 空则由网格名自动生成
 #if chose2D
-inline const char* tag = "cyl2d";
+inline const char* tag = "naca0012";
 #else
 inline const char* tag = "cyc-urans-rf";
 #endif
@@ -63,15 +71,15 @@ inline const char* tag = "cyc-urans-rf";
 // 双时间步/URANS参数
 namespace dualtime {
 // 物理时间步长, 不大于0表示定常
-inline double dt = 1.5e-3;
+inline double dt = 0.0;
 // 内迭代最大次数
-inline int inner = 20;
+inline int inner = 40;
 // 内迭代残差下降指标
 inline double inner_tol = 1e-3;
 // URANS之前的定常迭代次数
 inline int steady_iters = 0;
 // 定常迭代的CFL终值
-inline double steady_cfl = 50.0;
+inline double steady_cfl = 100.0;
 // 初始扰动幅值, 占Uinf的比例
 inline double seed = 0.0;
 }

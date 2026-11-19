@@ -13,7 +13,7 @@ struct cell_class {
     vec3 center;                               // 中心坐标
 
     vecp phy;                                   // 物理量
-    struct otphy* otphy = nullptr;               // 引申物理量
+    struct otphy* otphy = nullptr;              // 引申物理量
     vec5 conser;                                // 守恒量
     vec5 lastconser;                            // 上一时间步守恒量
     vec5 convect;                               // 无粘对流项
@@ -35,6 +35,7 @@ struct cell_class {
     #if LSCBchosen
         struct LSCBmatrix* LSCB = NULL; // LSCB梯度预处理矩阵
     #endif
+
     mat5 diag;            // 隐式对角块
     mat5tri conj;         // 无粘通量Jacobi
     double lambda = 0.0;  // 伪时间谱半径

@@ -3,3 +3,5 @@ out/
 .vscode/settings.json
 run/
 cases/*/mesh*.txt
+results/
+tests/

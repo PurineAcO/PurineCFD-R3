@@ -42,6 +42,8 @@ void solvekernel(int c, int lo, int hi);
 int relax();
 // 进行多次隐式伪时间迭代
 double flow_step(double dt, double cfl);
+// 进行一次显式伪时间推进
+double flow_step_explicit(double dt);
 }
 
 
@@ -57,7 +59,7 @@ inline std::vector<double> nurhs;
 void malloc_vector();
 // 单元SA残差
 double right_residual(cc::cell_class& cell);
-// SA对称高斯赛德尔核
+// SA对称Gauss-Seider核
 void solvekernel(int c, int lo, int hi);
 // 复制解向量到缓存
 void nucopy();
@@ -65,4 +67,6 @@ void nucopy();
 void relaxer();
 // 进行多次湍流模型伪时间迭代
 void turbulence_step(double dt, double cfl);
+// 进行一次湍流模型显式伪时间推进
+void turbulence_step_explicit(double dt);
 } // namespace SA

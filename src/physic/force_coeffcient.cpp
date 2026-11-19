@@ -9,6 +9,7 @@ void ph::wall_forces(double& cl, double& cd, const cc::vecp& refp) {
     const double q = dynamic_pressure(refp);
     const double a = std::atan2(refp.v, refp.u);
     const cc::vec3 dir{std::cos(a), std::sin(a), 0.0};
+    const cc::vec3 perp{-std::sin(a), std::cos(a), 0.0};
     double fx = 0.0, fy = 0.0, projected = 0.0;
     for(const cc::bound& bd : cc::bounds){
         if(bd.type != cc::WALL) {continue;}
@@ -17,7 +18,7 @@ void ph::wall_forces(double& cl, double& cd, const cc::vecp& refp) {
             const double s = cc::dot(w->nor, w->mid - c->center) > 0 ? 1.0 : -1.0;
             fx += s * (w->otphy->p * w->nor.x - w->visflux.x);
             fy += s * (w->otphy->p * w->nor.y - w->visflux.y);
-            projected += std::abs(cc::dot(w->nor, dir));
+            projected += std::abs(cc::dot(w->nor, perp));
         }
     }
     const double aref = 0.5*projected;

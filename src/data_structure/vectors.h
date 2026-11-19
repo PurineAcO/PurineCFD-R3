@@ -219,6 +219,8 @@ struct turbulence;
 
 // SST
 namespace SST {
+
+// 湍流变量
 struct turbulence;
 }
 
