@@ -22,7 +22,7 @@ endif()
 
 file(GLOB_RECURSE PURINE_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.cpp")
 
-add_executable(PurineCFD-R3 src/main.cpp ${PURINE_SRC})
+add_executable(PurineCFD-R3 ${PURINE_SRC})
 target_compile_options(PurineCFD-R3 PRIVATE ${PURINE_WARNINGS} -fopenmp)
 target_include_directories(PurineCFD-R3 PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_definitions(PurineCFD-R3 PRIVATE PURINE_DATA_DIR="${PURINE_DATA_DIR}")

@@ -1,0 +1,16 @@
+#include "data_structure/DataStructure.h"
+
+namespace cc {
+
+face_class::face_class(int index_, int p1_, int p2_, int p3_, int p4_,
+                       int c1_, int c2_, short type_, short pcnt_):
+    index(index_), type(type_), pcnt(pcnt_){
+        node[0] = p1_ > 0 ? &NodeList[p1_-1] : nullptr;
+        node[1] = p2_ > 0 ? &NodeList[p2_-1] : nullptr;
+        node[2] = (pcnt_ >= 3 && p3_ > 0) ? &NodeList[p3_-1] : nullptr;
+        node[3] = (pcnt_ >= 4 && p4_ > 0) ? &NodeList[p4_-1] : nullptr;
+        nei[0] = c1_ > 0 ? &CellList[c1_-1] : nullptr;
+        nei[1] = c2_ > 0 ? &CellList[c2_-1] : nullptr;
+}
+
+}

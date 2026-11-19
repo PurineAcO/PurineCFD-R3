@@ -5,8 +5,3 @@
 -Wno-unused-parameter
 -Wno-unused-variable
 -Isrc
--Isrc/data_structure
--Isrc/geometry
--Isrc/grad
--Isrc/physic
--Isrc/turbulence

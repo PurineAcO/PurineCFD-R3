@@ -1,6 +1,4 @@
-#include "cell_class.h"
-#include "face_class.h"
-#include "node_class.h"
+#include "data_structure/DataStructure.h"
 
 namespace cc {
 
