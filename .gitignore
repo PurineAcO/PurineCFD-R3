@@ -5,3 +5,4 @@ run/
 cases/*/mesh*.txt
 results/
 tests/
+.agent-teams/
